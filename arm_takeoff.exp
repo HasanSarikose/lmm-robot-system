@@ -1,0 +1,9 @@
+#!/usr/bin/expect -f
+set timeout 60
+spawn screen -r px4
+sleep 2
+send "commander arm -f\r"
+sleep 3
+send "commander takeoff\r"
+sleep 5
+send "\x01d"
