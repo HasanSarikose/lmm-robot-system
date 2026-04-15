@@ -85,27 +85,58 @@ class ArmController:
             "-p", f"data: {value}"],
             capture_output=True)
 
+    def gripper(self, action):
+        if action == "ac":
+            print("Gripper aciliyor")
+            subprocess.run(["ign", "topic", "-t", "/gripper_left", "-m", "ignition.msgs.Double", "-p", "data: -0.02"], capture_output=True)
+            subprocess.run(["ign", "topic", "-t", "/gripper_right", "-m", "ignition.msgs.Double", "-p", "data: 0.02"], capture_output=True)
+        else:
+            print("Gripper kapaniyor")
+            subprocess.run(["ign", "topic", "-t", "/gripper_left", "-m", "ignition.msgs.Double", "-p", "data: 0.0"], capture_output=True)
+            subprocess.run(["ign", "topic", "-t", "/gripper_right", "-m", "ignition.msgs.Double", "-p", "data: 0.0"], capture_output=True)
+
     def home(self):
-        print("Robot kol home pozisyonu")
-        for j in range(1, 5):
+        print("Home pozisyon")
+        for j in range(1, 7):
             self.set_joint(j, 0.0)
             time.sleep(0.3)
 
     def pick_pose(self):
-        print("Robot kol pick pozisyonu")
-        self.set_joint(2, 0.8)
-        time.sleep(1)
-        self.set_joint(3, -1.0)
-        time.sleep(1)
-        self.set_joint(1, 0.5)
+        print("Pick pozisyonu")
+        self.set_joint(2, 0.7)
+        time.sleep(0.8)
+        self.set_joint(3, -0.9)
+        time.sleep(0.8)
+        self.set_joint(5, 0.5)
+        time.sleep(0.5)
+        self.gripper("ac")
+        time.sleep(0.5)
+        self.gripper("kapa")
 
     def place_pose(self):
-        print("Robot kol place pozisyonu")
-        self.set_joint(1, -0.5)
+        print("Place pozisyonu")
+        self.set_joint(1, 1.5)
         time.sleep(1)
-        self.set_joint(2, 0.3)
-        time.sleep(1)
+        self.set_joint(2, 0.5)
+        time.sleep(0.8)
         self.set_joint(3, -0.5)
+        time.sleep(0.5)
+        self.gripper("ac")
+
+    def wave(self):
+        print("El sallama")
+        self.set_joint(2, 0.3)
+        time.sleep(0.5)
+        self.set_joint(3, -1.2)
+        time.sleep(0.5)
+        for _ in range(3):
+            self.set_joint(5, 0.8)
+            time.sleep(0.4)
+            self.set_joint(5, -0.8)
+            time.sleep(0.4)
+        self.set_joint(5, 0.0)
+        time.sleep(0.3)
+        self.home()
 
 drone = DroneController()
 ugv = UGVController()
@@ -164,7 +195,7 @@ while True:
                 ugv.daire(float(parts[2]) if len(parts) > 2 else 5.0)
 
         elif parts[0] == "arm":
-            if parts[1] in ["j1","j2","j3","j4"]:
+            if parts[1] in ["j1","j2","j3","j4","j5","j6"]:
                 arm.set_joint(int(parts[1][1]), float(parts[2]))
             elif parts[1] == "home":
                 arm.home()
@@ -172,6 +203,10 @@ while True:
                 arm.pick_pose()
             elif parts[1] == "place":
                 arm.place_pose()
+            elif parts[1] == "wave":
+                arm.wave()
+            elif parts[1] == "gripper":
+                arm.gripper(parts[2])
 
         elif parts[0] == "quit":
             break

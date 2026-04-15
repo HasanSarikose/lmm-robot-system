@@ -176,48 +176,123 @@
       </plugin>
     </model>
 
-    <!-- ========== ROBOT KOL ========== -->
+    <!-- ========== ROBOT KOL (6-DOF + Gripper) ========== -->
     <model name="robot_arm">
       <pose>2 0 0 0 0 0</pose>
       <joint name="world_fix" type="fixed"><parent>world</parent><child>base_link</child></joint>
+
       <link name="base_link">
-        <inertial><mass>2.0</mass><inertia><ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.01</iyy><iyz>0</iyz><izz>0.01</izz></inertia></inertial>
-        <visual name="v"><geometry><cylinder><radius>0.06</radius><length>0.04</length></cylinder></geometry><material><ambient>0.2 0.2 0.2 1</ambient><diffuse>0.3 0.3 0.3 1</diffuse></material></visual>
-        <collision name="c"><geometry><cylinder><radius>0.06</radius><length>0.04</length></cylinder></geometry></collision>
+        <inertial><mass>3.0</mass><inertia><ixx>0.02</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.02</iyy><iyz>0</iyz><izz>0.02</izz></inertia></inertial>
+        <visual name="base_plate"><pose>0 0 0.01 0 0 0</pose>
+          <geometry><cylinder><radius>0.08</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.2 0.2 0.2 1</diffuse></material></visual>
+        <visual name="base_column"><pose>0 0 0.04 0 0 0</pose>
+          <geometry><cylinder><radius>0.045</radius><length>0.04</length></cylinder></geometry>
+          <material><ambient>0.25 0.25 0.25 1</ambient><diffuse>0.3 0.3 0.3 1</diffuse></material></visual>
+        <collision name="c"><pose>0 0 0.03 0 0 0</pose><geometry><cylinder><radius>0.08</radius><length>0.06</length></cylinder></geometry></collision>
       </link>
-      <link name="link1"><pose relative_to="base_link">0 0 0.05 0 0 0</pose>
-        <inertial><mass>0.5</mass><inertia><ixx>0.001</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.001</iyy><iyz>0</iyz><izz>0.001</izz></inertia></inertial>
-        <visual name="v"><geometry><cylinder><radius>0.04</radius><length>0.08</length></cylinder></geometry><material><ambient>0.8 0.2 0 1</ambient><diffuse>0.9 0.3 0 1</diffuse></material></visual>
-        <collision name="c"><geometry><cylinder><radius>0.04</radius><length>0.08</length></cylinder></geometry></collision>
+
+      <link name="link1"><pose relative_to="base_link">0 0 0.08 0 0 0</pose>
+        <inertial><mass>0.6</mass><inertia><ixx>0.001</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.001</iyy><iyz>0</iyz><izz>0.001</izz></inertia></inertial>
+        <visual name="v"><geometry><cylinder><radius>0.04</radius><length>0.06</length></cylinder></geometry>
+          <material><ambient>0.7 0.3 0.0 1</ambient><diffuse>0.9 0.4 0.0 1</diffuse></material></visual>
+        <collision name="c"><geometry><cylinder><radius>0.04</radius><length>0.06</length></cylinder></geometry></collision>
       </link>
-      <joint name="joint1" type="revolute"><parent>base_link</parent><child>link1</child><axis><xyz>0 0 1</xyz><limit><lower>-3.14</lower><upper>3.14</upper><effort>50</effort></limit></axis></joint>
-      <link name="link2"><pose relative_to="link1">0 0 0.12 0 0 0</pose>
-        <inertial><mass>0.4</mass><inertia><ixx>0.002</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.002</iyy><iyz>0</iyz><izz>0.0005</izz></inertia></inertial>
-        <visual name="v"><geometry><box><size>0.03 0.03 0.2</size></box></geometry><material><ambient>0 0.5 0.8 1</ambient><diffuse>0 0.6 0.9 1</diffuse></material></visual>
-        <collision name="c"><geometry><box><size>0.03 0.03 0.2</size></box></geometry></collision>
+      <joint name="joint1" type="revolute"><parent>base_link</parent><child>link1</child>
+        <axis><xyz>0 0 1</xyz><limit><lower>-3.14</lower><upper>3.14</upper><effort>50</effort></limit><dynamics><damping>0.5</damping></dynamics></axis></joint>
+
+      <link name="link2"><pose relative_to="link1">0 0 0.06 0 0 0</pose>
+        <inertial><mass>0.5</mass><inertia><ixx>0.003</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.003</iyy><iyz>0</iyz><izz>0.0005</izz></inertia></inertial>
+        <visual name="joint_cap"><geometry><sphere><radius>0.03</radius></sphere></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.6 0.6 0.6 1</diffuse></material></visual>
+        <visual name="upper_arm"><pose>0 0 0.1 0 0 0</pose>
+          <geometry><box><size>0.035 0.035 0.2</size></box></geometry>
+          <material><ambient>0.0 0.35 0.7 1</ambient><diffuse>0.0 0.45 0.85 1</diffuse></material></visual>
+        <collision name="c"><pose>0 0 0.1 0 0 0</pose><geometry><box><size>0.035 0.035 0.2</size></box></geometry></collision>
       </link>
-      <joint name="joint2" type="revolute"><parent>link1</parent><child>link2</child><axis><xyz>0 1 0</xyz><limit><lower>-1.57</lower><upper>1.57</upper><effort>50</effort></limit></axis></joint>
-      <link name="link3"><pose relative_to="link2">0 0 0.18 0 0 0</pose>
-        <inertial><mass>0.3</mass><inertia><ixx>0.001</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.001</iyy><iyz>0</iyz><izz>0.0003</izz></inertia></inertial>
-        <visual name="v"><geometry><box><size>0.025 0.025 0.16</size></box></geometry><material><ambient>0 0.5 0.8 1</ambient><diffuse>0 0.6 0.9 1</diffuse></material></visual>
-        <collision name="c"><geometry><box><size>0.025 0.025 0.16</size></box></geometry></collision>
+      <joint name="joint2" type="revolute"><parent>link1</parent><child>link2</child>
+        <axis><xyz>0 1 0</xyz><limit><lower>-1.57</lower><upper>1.57</upper><effort>50</effort></limit><dynamics><damping>0.5</damping></dynamics></axis></joint>
+
+      <link name="link3"><pose relative_to="link2">0 0 0.2 0 0 0</pose>
+        <inertial><mass>0.4</mass><inertia><ixx>0.002</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.002</iyy><iyz>0</iyz><izz>0.0003</izz></inertia></inertial>
+        <visual name="joint_cap"><geometry><sphere><radius>0.025</radius></sphere></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.6 0.6 0.6 1</diffuse></material></visual>
+        <visual name="forearm"><pose>0 0 0.08 0 0 0</pose>
+          <geometry><box><size>0.03 0.03 0.16</size></box></geometry>
+          <material><ambient>0.0 0.35 0.7 1</ambient><diffuse>0.0 0.45 0.85 1</diffuse></material></visual>
+        <collision name="c"><pose>0 0 0.08 0 0 0</pose><geometry><box><size>0.03 0.03 0.16</size></box></geometry></collision>
       </link>
-      <joint name="joint3" type="revolute"><parent>link2</parent><child>link3</child><axis><xyz>0 1 0</xyz><limit><lower>-2.0</lower><upper>2.0</upper><effort>30</effort></limit></axis></joint>
-      <link name="link4"><pose relative_to="link3">0 0 0.12 0 0 0</pose>
-        <inertial><mass>0.2</mass><inertia><ixx>0.0005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.0005</iyy><iyz>0</iyz><izz>0.0002</izz></inertia></inertial>
-        <visual name="v"><geometry><cylinder><radius>0.02</radius><length>0.06</length></cylinder></geometry><material><ambient>0.8 0.2 0 1</ambient><diffuse>0.9 0.3 0 1</diffuse></material></visual>
-        <collision name="c"><geometry><cylinder><radius>0.02</radius><length>0.06</length></cylinder></geometry></collision>
+      <joint name="joint3" type="revolute"><parent>link2</parent><child>link3</child>
+        <axis><xyz>0 1 0</xyz><limit><lower>-2.35</lower><upper>2.35</upper><effort>30</effort></limit><dynamics><damping>0.3</damping></dynamics></axis></joint>
+
+      <link name="link4"><pose relative_to="link3">0 0 0.16 0 0 0</pose>
+        <inertial><mass>0.25</mass><inertia><ixx>0.0005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.0005</iyy><iyz>0</iyz><izz>0.0003</izz></inertia></inertial>
+        <visual name="v"><geometry><cylinder><radius>0.022</radius><length>0.04</length></cylinder></geometry>
+          <material><ambient>0.7 0.3 0.0 1</ambient><diffuse>0.9 0.4 0.0 1</diffuse></material></visual>
+        <collision name="c"><geometry><cylinder><radius>0.022</radius><length>0.04</length></cylinder></geometry></collision>
       </link>
-      <joint name="joint4" type="revolute"><parent>link3</parent><child>link4</child><axis><xyz>0 0 1</xyz><limit><lower>-3.14</lower><upper>3.14</upper><effort>20</effort></limit></axis></joint>
-      <link name="gripper"><pose relative_to="link4">0 0 0.05 0 0 0</pose>
+      <joint name="joint4" type="revolute"><parent>link3</parent><child>link4</child>
+        <axis><xyz>0 0 1</xyz><limit><lower>-3.14</lower><upper>3.14</upper><effort>20</effort></limit><dynamics><damping>0.2</damping></dynamics></axis></joint>
+
+      <link name="link5"><pose relative_to="link4">0 0 0.04 0 0 0</pose>
+        <inertial><mass>0.15</mass><inertia><ixx>0.0003</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.0003</iyy><iyz>0</iyz><izz>0.0002</izz></inertia></inertial>
+        <visual name="joint_cap"><geometry><sphere><radius>0.02</radius></sphere></geometry>
+          <material><ambient>0.5 0.5 0.5 1</ambient><diffuse>0.6 0.6 0.6 1</diffuse></material></visual>
+        <visual name="wrist"><pose>0 0 0.025 0 0 0</pose>
+          <geometry><cylinder><radius>0.018</radius><length>0.04</length></cylinder></geometry>
+          <material><ambient>0.0 0.35 0.7 1</ambient><diffuse>0.0 0.45 0.85 1</diffuse></material></visual>
+        <collision name="c"><pose>0 0 0.025 0 0 0</pose><geometry><cylinder><radius>0.018</radius><length>0.04</length></cylinder></geometry></collision>
+      </link>
+      <joint name="joint5" type="revolute"><parent>link4</parent><child>link5</child>
+        <axis><xyz>0 1 0</xyz><limit><lower>-2.0</lower><upper>2.0</upper><effort>15</effort></limit><dynamics><damping>0.2</damping></dynamics></axis></joint>
+
+      <link name="link6"><pose relative_to="link5">0 0 0.05 0 0 0</pose>
         <inertial><mass>0.1</mass><inertia><ixx>0.0001</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.0001</iyy><iyz>0</iyz><izz>0.0001</izz></inertia></inertial>
-        <visual name="v"><geometry><box><size>0.06 0.02 0.02</size></box></geometry><material><ambient>0.5 0.5 0.5 1</ambient></material></visual>
+        <visual name="v"><geometry><cylinder><radius>0.018</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.7 0.3 0.0 1</ambient><diffuse>0.9 0.4 0.0 1</diffuse></material></visual>
+        <collision name="c"><geometry><cylinder><radius>0.018</radius><length>0.02</length></cylinder></geometry></collision>
       </link>
-      <joint name="gripper_joint" type="fixed"><parent>link4</parent><child>gripper</child></joint>
-      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint1</joint_name><topic>arm_j1</topic><p_gain>20</p_gain><i_gain>0.1</i_gain><d_gain>1.0</d_gain></plugin>
-      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint2</joint_name><topic>arm_j2</topic><p_gain>20</p_gain><i_gain>0.1</i_gain><d_gain>1.0</d_gain></plugin>
-      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint3</joint_name><topic>arm_j3</topic><p_gain>15</p_gain><i_gain>0.1</i_gain><d_gain>0.5</d_gain></plugin>
-      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint4</joint_name><topic>arm_j4</topic><p_gain>10</p_gain><i_gain>0.1</i_gain><d_gain>0.5</d_gain></plugin>
+      <joint name="joint6" type="revolute"><parent>link5</parent><child>link6</child>
+        <axis><xyz>0 0 1</xyz><limit><lower>-3.14</lower><upper>3.14</upper><effort>10</effort></limit><dynamics><damping>0.1</damping></dynamics></axis></joint>
+
+      <link name="gripper_base"><pose relative_to="link6">0 0 0.02 0 0 0</pose>
+        <inertial><mass>0.08</mass><inertia><ixx>0.00005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.00005</iyy><iyz>0</iyz><izz>0.00005</izz></inertia></inertial>
+        <visual name="v"><geometry><box><size>0.07 0.025 0.015</size></box></geometry>
+          <material><ambient>0.4 0.4 0.4 1</ambient><diffuse>0.5 0.5 0.5 1</diffuse></material></visual>
+      </link>
+      <joint name="gripper_base_joint" type="fixed"><parent>link6</parent><child>gripper_base</child></joint>
+
+      <link name="finger_left"><pose relative_to="gripper_base">-0.025 0 0.02 0 0 0</pose>
+        <inertial><mass>0.02</mass><inertia><ixx>0.000005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.000005</iyy><iyz>0</iyz><izz>0.000005</izz></inertia></inertial>
+        <visual name="base"><geometry><box><size>0.01 0.02 0.035</size></box></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+        <visual name="tip"><pose>0.003 0 0.022 0 0.15 0</pose><geometry><box><size>0.008 0.018 0.015</size></box></geometry>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.8 0.8 0.8 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.01 0.02 0.035</size></box></geometry></collision>
+      </link>
+      <joint name="finger_left_joint" type="prismatic"><parent>gripper_base</parent><child>finger_left</child>
+        <axis><xyz>1 0 0</xyz><limit><lower>-0.025</lower><upper>0.0</upper><effort>10</effort></limit><dynamics><damping>0.1</damping></dynamics></axis></joint>
+
+      <link name="finger_right"><pose relative_to="gripper_base">0.025 0 0.02 0 0 0</pose>
+        <inertial><mass>0.02</mass><inertia><ixx>0.000005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.000005</iyy><iyz>0</iyz><izz>0.000005</izz></inertia></inertial>
+        <visual name="base"><geometry><box><size>0.01 0.02 0.035</size></box></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+        <visual name="tip"><pose>-0.003 0 0.022 0 -0.15 0</pose><geometry><box><size>0.008 0.018 0.015</size></box></geometry>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.8 0.8 0.8 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.01 0.02 0.035</size></box></geometry></collision>
+      </link>
+      <joint name="finger_right_joint" type="prismatic"><parent>gripper_base</parent><child>finger_right</child>
+        <axis><xyz>1 0 0</xyz><limit><lower>0.0</lower><upper>0.025</upper><effort>10</effort></limit><dynamics><damping>0.1</damping></dynamics></axis></joint>
+
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint1</joint_name><topic>arm_j1</topic><p_gain>8</p_gain><i_gain>0.05</i_gain><d_gain>4.0</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint2</joint_name><topic>arm_j2</topic><p_gain>8</p_gain><i_gain>0.05</i_gain><d_gain>4.0</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint3</joint_name><topic>arm_j3</topic><p_gain>6</p_gain><i_gain>0.05</i_gain><d_gain>3.0</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint4</joint_name><topic>arm_j4</topic><p_gain>5</p_gain><i_gain>0.05</i_gain><d_gain>2.0</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint5</joint_name><topic>arm_j5</topic><p_gain>4</p_gain><i_gain>0.05</i_gain><d_gain>1.5</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>joint6</joint_name><topic>arm_j6</topic><p_gain>3</p_gain><i_gain>0.05</i_gain><d_gain>1.0</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>finger_left_joint</joint_name><topic>gripper_left</topic><p_gain>20</p_gain><i_gain>0.1</i_gain><d_gain>0.5</d_gain></plugin>
+      <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>finger_right_joint</joint_name><topic>gripper_right</topic><p_gain>20</p_gain><i_gain>0.1</i_gain><d_gain>0.5</d_gain></plugin>
     </model>
-  </world>
+
+      </world>
 </sdf>
