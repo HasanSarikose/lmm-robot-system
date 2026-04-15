@@ -30,31 +30,96 @@
       </link>
     </model>
 
-    <!-- ========== DRONE (İHA) - Static model, Python ile kontrol ========== -->
+    <!-- ========== DRONE (İHA) ========== -->
     <model name="drone">
       <static>true</static>
-      <pose>0 0 0.2 0 0 0</pose>
+      <pose>0 0 0.15 0 0 0</pose>
       <link name="body">
-        <visual name="frame">
-          <geometry><box><size>0.4 0.4 0.05</size></box></geometry>
-          <material><ambient>0.2 0.2 0.2 1</ambient><diffuse>0.3 0.3 0.3 1</diffuse></material>
+        <visual name="center">
+          <geometry><cylinder><radius>0.06</radius><length>0.04</length></cylinder></geometry>
+          <material><ambient>0.15 0.15 0.15 1</ambient><diffuse>0.2 0.2 0.2 1</diffuse></material>
         </visual>
-        <visual name="arm1"><pose>0.15 0.15 0.03 0 0 0.785</pose>
-          <geometry><box><size>0.25 0.02 0.02</size></box></geometry>
-          <material><ambient>0.8 0 0 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material></visual>
-        <visual name="arm2"><pose>-0.15 0.15 0.03 0 0 -0.785</pose>
-          <geometry><box><size>0.25 0.02 0.02</size></box></geometry>
-          <material><ambient>0.8 0 0 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material></visual>
-        <visual name="arm3"><pose>-0.15 -0.15 0.03 0 0 0.785</pose>
-          <geometry><box><size>0.25 0.02 0.02</size></box></geometry>
-          <material><ambient>0 0 0.8 1</ambient><diffuse>0.1 0.1 0.9 1</diffuse></material></visual>
-        <visual name="arm4"><pose>0.15 -0.15 0.03 0 0 -0.785</pose>
-          <geometry><box><size>0.25 0.02 0.02</size></box></geometry>
-          <material><ambient>0 0 0.8 1</ambient><diffuse>0.1 0.1 0.9 1</diffuse></material></visual>
-        <visual name="p1"><pose>0.2 0.2 0.05 0 0 0</pose><geometry><cylinder><radius>0.08</radius><length>0.005</length></cylinder></geometry><material><ambient>0.1 0.1 0.1 1</ambient></material></visual>
-        <visual name="p2"><pose>-0.2 0.2 0.05 0 0 0</pose><geometry><cylinder><radius>0.08</radius><length>0.005</length></cylinder></geometry><material><ambient>0.1 0.1 0.1 1</ambient></material></visual>
-        <visual name="p3"><pose>-0.2 -0.2 0.05 0 0 0</pose><geometry><cylinder><radius>0.08</radius><length>0.005</length></cylinder></geometry><material><ambient>0.1 0.1 0.1 1</ambient></material></visual>
-        <visual name="p4"><pose>0.2 -0.2 0.05 0 0 0</pose><geometry><cylinder><radius>0.08</radius><length>0.005</length></cylinder></geometry><material><ambient>0.1 0.1 0.1 1</ambient></material></visual>
+        <visual name="top_cover">
+          <pose>0 0 0.025 0 0 0</pose>
+          <geometry><box><size>0.08 0.08 0.015</size></box></geometry>
+          <material><ambient>0.0 0.4 0.0 1</ambient><diffuse>0.0 0.5 0.0 1</diffuse></material>
+        </visual>
+        <visual name="gps">
+          <pose>0 0 0.045 0 0 0</pose>
+          <geometry><cylinder><radius>0.015</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material>
+        </visual>
+        <visual name="battery">
+          <pose>0 0 -0.03 0 0 0</pose>
+          <geometry><box><size>0.06 0.03 0.02</size></box></geometry>
+          <material><ambient>0.1 0.1 0.4 1</ambient><diffuse>0.1 0.1 0.5 1</diffuse></material>
+        </visual>
+
+        <visual name="arm_fr"><pose>0.1 -0.1 0 0 0 -0.785</pose>
+          <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
+          <material><ambient>0.6 0.0 0.0 1</ambient><diffuse>0.8 0.1 0.1 1</diffuse></material></visual>
+        <visual name="arm_fl"><pose>0.1 0.1 0 0 0 0.785</pose>
+          <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
+          <material><ambient>0.6 0.0 0.0 1</ambient><diffuse>0.8 0.1 0.1 1</diffuse></material></visual>
+        <visual name="arm_rl"><pose>-0.1 0.1 0 0 0 -0.785</pose>
+          <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="arm_rr"><pose>-0.1 -0.1 0 0 0 0.785</pose>
+          <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+
+        <visual name="motor_fr"><pose>0.18 -0.18 0.01 0 0 0</pose>
+          <geometry><cylinder><radius>0.018</radius><length>0.025</length></cylinder></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material></visual>
+        <visual name="motor_fl"><pose>0.18 0.18 0.01 0 0 0</pose>
+          <geometry><cylinder><radius>0.018</radius><length>0.025</length></cylinder></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material></visual>
+        <visual name="motor_rl"><pose>-0.18 0.18 0.01 0 0 0</pose>
+          <geometry><cylinder><radius>0.018</radius><length>0.025</length></cylinder></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material></visual>
+        <visual name="motor_rr"><pose>-0.18 -0.18 0.01 0 0 0</pose>
+          <geometry><cylinder><radius>0.018</radius><length>0.025</length></cylinder></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material></visual>
+
+        <visual name="prop_fr"><pose>0.18 -0.18 0.025 0 0 0</pose>
+          <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
+          <material><ambient>0.3 0.0 0.0 0.7</ambient><diffuse>0.5 0.1 0.1 0.7</diffuse></material></visual>
+        <visual name="prop_fl"><pose>0.18 0.18 0.025 0 0 0</pose>
+          <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
+          <material><ambient>0.3 0.0 0.0 0.7</ambient><diffuse>0.5 0.1 0.1 0.7</diffuse></material></visual>
+        <visual name="prop_rl"><pose>-0.18 0.18 0.025 0 0 0</pose>
+          <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
+          <material><ambient>0.0 0.0 0.3 0.7</ambient><diffuse>0.1 0.1 0.5 0.7</diffuse></material></visual>
+        <visual name="prop_rr"><pose>-0.18 -0.18 0.025 0 0 0</pose>
+          <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
+          <material><ambient>0.0 0.0 0.3 0.7</ambient><diffuse>0.1 0.1 0.5 0.7</diffuse></material></visual>
+
+        <visual name="leg_fr"><pose>0.08 -0.06 -0.05 0 0 0</pose>
+          <geometry><box><size>0.008 0.008 0.07</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <visual name="leg_fl"><pose>0.08 0.06 -0.05 0 0 0</pose>
+          <geometry><box><size>0.008 0.008 0.07</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <visual name="leg_rl"><pose>-0.08 0.06 -0.05 0 0 0</pose>
+          <geometry><box><size>0.008 0.008 0.07</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <visual name="leg_rr"><pose>-0.08 -0.06 -0.05 0 0 0</pose>
+          <geometry><box><size>0.008 0.008 0.07</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+
+        <visual name="skid_l"><pose>0 0.06 -0.085 0 0 0</pose>
+          <geometry><box><size>0.22 0.008 0.008</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <visual name="skid_r"><pose>0 -0.06 -0.085 0 0 0</pose>
+          <geometry><box><size>0.22 0.008 0.008</size></box></geometry>
+          <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+
+        <visual name="cam"><pose>0.04 0 -0.03 0 0.3 0</pose>
+          <geometry><box><size>0.025 0.03 0.02</size></box></geometry>
+          <material><ambient>0.05 0.05 0.05 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material></visual>
+        <visual name="cam_lens"><pose>0.052 0 -0.025 0 0.3 0</pose>
+          <geometry><cylinder><radius>0.008</radius><length>0.008</length></cylinder></geometry>
+          <material><ambient>0.0 0.0 0.2 1</ambient><diffuse>0.0 0.0 0.3 1</diffuse></material></visual>
       </link>
     </model>
 
