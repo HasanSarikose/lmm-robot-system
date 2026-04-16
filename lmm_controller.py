@@ -3,6 +3,107 @@ import subprocess
 import json
 import time
 import requests
+import re
+
+# ========== SENSOR OKUMA ==========
+
+def read_sensor(topic, num=1, timeout=3):
+    try:
+        result = subprocess.run(
+            ["ign", "topic", "-e", "-t", topic, "--num", str(num)],
+            capture_output=True, text=True, timeout=timeout
+        )
+        return result.stdout
+    except:
+        return ""
+
+def get_drone_imu():
+    data = read_sensor("/drone/imu")
+    if not data:
+        return {"status": "veri yok"}
+    info = {}
+    for line in data.split("\n"):
+        if "linear_acceleration" in data:
+            info["sensor"] = "aktif"
+    return {"sensor": "aktif" if data else "pasif"}
+
+def get_ika_odom():
+    data = read_sensor("/ika/odom")
+    if not data:
+        return {"x": 0, "y": 0, "yaw": 0}
+    x = y = 0
+    for line in data.split("\n"):
+        line = line.strip()
+        if line.startswith("x:") and "position" not in line:
+            try:
+                val = float(line.split(":")[1].strip())
+                if x == 0:
+                    x = val
+            except:
+                pass
+        elif line.startswith("y:") and x != 0:
+            try:
+                y = float(line.split(":")[1].strip())
+            except:
+                pass
+    return {"x": round(x, 2), "y": round(y, 2)}
+
+def get_ika_lidar_summary():
+    data = read_sensor("/ika/lidar")
+    if not data:
+        return {"engel": "bilinmiyor"}
+    ranges = []
+    for line in data.split("\n"):
+        line = line.strip()
+        if line.startswith("ranges:"):
+            try:
+                val = float(line.split(":")[1].strip())
+                if val > 0.01 and val < 100:
+                    ranges.append(val)
+            except:
+                pass
+    if not ranges:
+        return {"engel": "veri yok", "min_mesafe": 0}
+    min_range = min(ranges)
+    engel = "var" if min_range < 0.5 else "yok"
+    return {
+        "engel": engel,
+        "min_mesafe": round(min_range, 2),
+        "ortalama_mesafe": round(sum(ranges)/len(ranges), 2),
+        "olcum_sayisi": len(ranges)
+    }
+
+def get_arm_joints():
+    data = read_sensor("/arm/joint_states")
+    if not data:
+        return {}
+    joints = {}
+    current_joint = None
+    for line in data.split("\n"):
+        line = line.strip()
+        if line.startswith("name:"):
+            name = line.split(":")[1].strip().strip('"')
+            current_joint = name
+        elif "position" in line and current_joint:
+            pass
+    return {"status": "aktif"}
+
+def get_all_status():
+    status = {
+        "drone": {
+            "pozisyon": {"x": drone.x, "y": drone.y, "z": drone.z},
+            "imu": get_drone_imu()
+        },
+        "ika": {
+            "odom": get_ika_odom(),
+            "lidar": get_ika_lidar_summary()
+        },
+        "robot_kol": {
+            "joints": get_arm_joints()
+        }
+    }
+    return status
+
 
 # ========== ROBOT KONTROL ==========
 
@@ -125,27 +226,35 @@ def arm_place():
     return "Robot kol nesneyi birakti"
 
 
-# ========== LLM ENTEGRASYONU ==========
+# ========== LLM ==========
 
 SYSTEM_PROMPT = """Sen bir coklu robot kontrol sistemisin. Kullanicinin dogal dil komutlarini analiz edip uygun robot komutlarina donusturuyorsun.
 
 Kontrol edebildigin robotlar:
-1. DRONE (IHA): takeoff, goto(x,y,z), land
-2. IKA (4 tekerlekli arac): ileri, geri, sola, saga, daire, dur
-3. ROBOT KOL (6-DOF): joint(1-6, aci), gripper(ac/kapa), home, pick, place
+1. DRONE (IHA): takeoff(altitude), goto(x,y,z), land
+2. UGV/IKA (4 tekerlekli arac): move(direction: ileri/geri/sola/saga/daire/dur, duration)
+3. ARM/KOL (6-DOF Robot Kol): joint(num:1-6, angle), gripper(ac/kapa), home, pick, place
 
-Kullanicinin komutunu analiz et ve asagidaki JSON formatinda yanit ver. Birden fazla robot komutu olabilir:
+Ayrica sensor verilerini sorgulayabilirsin:
+4. STATUS: Tum robotlarin sensor durumunu sorgula
+
+Kullanicinin komutunu analiz et ve asagidaki JSON formatinda yanit ver:
 
 {
   "commands": [
     {"robot": "drone", "action": "takeoff", "params": {"altitude": 5}},
     {"robot": "ugv", "action": "move", "params": {"direction": "ileri", "duration": 3}},
-    {"robot": "arm", "action": "pick", "params": {}}
+    {"robot": "arm", "action": "pick", "params": {}},
+    {"robot": "system", "action": "status", "params": {}}
   ],
   "explanation": "Yapilan islemin kisa aciklamasi"
 }
 
-SADECE JSON formatinda yanit ver, baska bir sey yazma."""
+Onemli kurallar:
+- robot degeri kucuk harf olmali: drone, ugv, arm, system
+- IKA icin robot="ugv", action="move" kullan
+- Eger kullanici durum/bilgi/sensor soruyorsa robot="system", action="status" kullan
+- SADECE JSON formatinda yanit ver"""
 
 
 def ask_llm(user_input):
@@ -197,6 +306,16 @@ def execute_commands(commands):
                 results.append(arm_pick())
             elif action == "place":
                 results.append(arm_place())
+        elif robot == "system":
+            if action == "status":
+                status = get_all_status()
+                print("\n[SISTEM DURUMU]")
+                print(f"  DRONE  - Pozisyon: x={status['drone']['pozisyon']['x']:.2f} y={status['drone']['pozisyon']['y']:.2f} z={status['drone']['pozisyon']['z']:.2f}")
+                print(f"           IMU: {status['drone']['imu']}")
+                print(f"  IKA    - Odom: {status['ika']['odom']}")
+                print(f"           LiDAR: {status['ika']['lidar']}")
+                print(f"  KOL    - Joints: {status['robot_kol']['joints']}")
+                results.append("Sistem durumu raporlandi")
     return results
 
 
@@ -207,11 +326,14 @@ drone = DroneCtrl()
 print("="*60)
 print("  LMM TABANLI COKLU ROBOT KONTROL SISTEMI")
 print("  Ollama + Llama 3.1 | Gazebo Fortress")
+print("  Sensor Entegrasyonu Aktif")
 print("="*60)
 print()
 print("Dogal dil ile komut verin:")
 print("  Ornek: Drone'u 10 metreye kaldir")
-print("  Ornek: IKA'yi ileri gonder ve kolu pick pozisyonuna getir")
+print("  Ornek: IKA'nin onunde engel var mi?")
+print("  Ornek: Tum robotlarin durumunu goster")
+print("  Ornek: Drone'u kaldir ve IKA'yi ileri gonder")
 print("  quit - Cikis")
 print("="*60)
 
