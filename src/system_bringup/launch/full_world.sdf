@@ -39,7 +39,7 @@
     <!-- ========== ORTAM OBJELERI ========== -->
     <model name="building1">
       <static>true</static>
-      <pose>5 -3 1 0 0 0</pose>
+      <pose>3 -3 1 0 0 0</pose>
       <link name="link">
         <visual name="v"><geometry><box><size>2 3 2</size></box></geometry>
           <material><ambient>0.6 0.55 0.45 1</ambient><diffuse>0.7 0.65 0.55 1</diffuse></material></visual>
@@ -49,7 +49,7 @@
 
     <model name="building2">
       <static>true</static>
-      <pose>-5 4 1.5 0 0 0.3</pose>
+     <pose>-3 3 1.5 0 0 0.3</pose>
       <link name="link">
         <visual name="v"><geometry><box><size>3 2 3</size></box></geometry>
           <material><ambient>0.5 0.5 0.55 1</ambient><diffuse>0.6 0.6 0.65 1</diffuse></material></visual>
@@ -59,9 +59,9 @@
 
     <model name="hangar">
       <static>true</static>
-      <pose>4 5 0.75 0 0 0</pose>
+      <pose>3 3 0.5 0 0 0</pose>
       <link name="link">
-        <visual name="walls"><geometry><box><size>4 6 1.5</size></box></geometry>
+        <visual name="walls"><geometry><box><size>2 3 1</size></box></geometry>
           <material><ambient>0.45 0.45 0.4 1</ambient><diffuse>0.55 0.55 0.5 1</diffuse></material></visual>
         <visual name="roof"><pose>0 0 0.85 0 0 0</pose><geometry><box><size>4.2 6.2 0.1</size></box></geometry>
           <material><ambient>0.3 0.25 0.2 1</ambient><diffuse>0.4 0.35 0.3 1</diffuse></material></visual>
@@ -69,13 +69,44 @@
       </link>
     </model>
 
-    <model name="wall1">
+    <!-- Arena Duvarlari (10m x 10m) -->
+    <model name="wall_north">
       <static>true</static>
-      <pose>0 -5 0.4 0 0 0</pose>
+      <pose>0 7.5 0.4 0 0 0</pose>
       <link name="link">
-        <visual name="v"><geometry><box><size>8 0.2 0.8</size></box></geometry>
+        <visual name="v"><geometry><box><size>15 0.1 0.8</size></box></geometry>
           <material><ambient>0.55 0.5 0.45 1</ambient><diffuse>0.65 0.6 0.55 1</diffuse></material></visual>
-        <collision name="c"><geometry><box><size>8 0.2 0.8</size></box></geometry></collision>
+        <collision name="c"><geometry><box><size>10 0.1 0.8</size></box></geometry></collision>
+      </link>
+    </model>
+
+    <model name="wall_south">
+      <static>true</static>
+      <pose>0 -7.5 0.4 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>15 0.1 0.8</size></box></geometry>
+          <material><ambient>0.55 0.5 0.45 1</ambient><diffuse>0.65 0.6 0.55 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>10 0.1 0.8</size></box></geometry></collision>
+      </link>
+    </model>
+
+    <model name="wall_east">
+      <static>true</static>
+      <pose>7.5 0 0.4 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.1 15 0.8</size></box></geometry>
+          <material><ambient>0.55 0.5 0.45 1</ambient><diffuse>0.65 0.6 0.55 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.1 10 0.8</size></box></geometry></collision>
+      </link>
+    </model>
+
+    <model name="wall_west">
+      <static>true</static>
+      <pose>-7.5 0 0.4 0 0 0</pose>
+      <link name="link">
+        <visual name="v"><geometry><box><size>0.1 15 0.8</size></box></geometry>
+          <material><ambient>0.55 0.5 0.45 1</ambient><diffuse>0.65 0.6 0.55 1</diffuse></material></visual>
+        <collision name="c"><geometry><box><size>0.1 10 0.8</size></box></geometry></collision>
       </link>
     </model>
 
@@ -104,7 +135,7 @@
       <pose>3 -1 0.3 0 0 0</pose>
       <link name="link">
         <visual name="v"><geometry><cylinder><radius>0.2</radius><length>0.6</length></cylinder></geometry>
-          <material><ambient>0.6 0.0 0.0 1</ambient><diffuse>0.7 0.1 0.1 1</diffuse></material></visual>
+<material><ambient>0.0 0.5 0.0 1</ambient><diffuse>0.0 0.6 0.0 1</diffuse></material></visual>
         <collision name="c"><geometry><cylinder><radius>0.2</radius><length>0.6</length></cylinder></geometry></collision>
       </link>
     </model>
@@ -165,7 +196,7 @@
       <static>true</static>
       <pose>4 -1 0.05 0 0 0</pose>
       <link name="link">
-        <visual name="v"><geometry><sphere><radius>0.05</radius></sphere></geometry>
+        <visual name="v"><geometry><sphere><radius>0.1</radius></sphere></geometry>
           <material><ambient>0.9 0.0 0.0 1</ambient><diffuse>1.0 0.0 0.0 1</diffuse></material></visual>
         <collision name="c"><geometry><sphere><radius>0.05</radius></sphere></geometry></collision>
       </link>
@@ -175,7 +206,7 @@
       <static>true</static>
       <pose>3 3 0.05 0 0 0</pose>
       <link name="link">
-        <visual name="v"><geometry><sphere><radius>0.05</radius></sphere></geometry>
+        <visual name="v"><geometry><sphere><radius>0.1</radius></sphere></geometry>
           <material><ambient>0.9 0.0 0.0 1</ambient><diffuse>1.0 0.0 0.0 1</diffuse></material></visual>
         <collision name="c"><geometry><sphere><radius>0.05</radius></sphere></geometry></collision>
       </link>
@@ -185,7 +216,7 @@
       <static>true</static>
       <pose>-3 2 0.05 0 0 0</pose>
       <link name="link">
-        <visual name="v"><geometry><sphere><radius>0.05</radius></sphere></geometry>
+        <visual name="v"><geometry><sphere><radius>0.1</radius></sphere></geometry>
           <material><ambient>0.9 0.0 0.0 1</ambient><diffuse>1.0 0.0 0.0 1</diffuse></material></visual>
         <collision name="c"><geometry><sphere><radius>0.05</radius></sphere></geometry></collision>
       </link>
@@ -271,11 +302,11 @@
           <material><ambient>0.0 0.0 0.2 1</ambient><diffuse>0.0 0.0 0.3 1</diffuse></material></visual>
 
         <sensor name="drone_camera" type="camera">
-          <pose>0.05 0 -0.02 0 0.3 0</pose>
+          <pose>0 0 -0.04 0 1.5708 0</pose>
           <always_on>1</always_on>
           <update_rate>15</update_rate>
           <camera>
-            <horizontal_fov>1.39</horizontal_fov>
+            <horizontal_fov>1.8</horizontal_fov>
             <image><width>320</width><height>240</height></image>
             <clip><near>0.1</near><far>100</far></clip>
           </camera>

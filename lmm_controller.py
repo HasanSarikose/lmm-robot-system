@@ -202,12 +202,12 @@ def arm_home():
 
 def arm_pick():
     print("[KOL] Pick hareketi")
-    arm_joint(2, 0.7)
-    time.sleep(0.8)
-    arm_joint(3, -0.9)
-    time.sleep(0.8)
-    arm_joint(5, 0.5)
-    time.sleep(0.5)
+    arm_joint(2, -.5)
+    time.sleep(1.5)
+    arm_joint(3, 1.5)
+    time.sleep(1.5)
+    arm_joint(5, 1.3)
+    time.sleep(1)
     arm_gripper("ac")
     time.sleep(0.5)
     arm_gripper("kapa")
@@ -216,12 +216,14 @@ def arm_pick():
 
 def arm_place():
     print("[KOL] Place hareketi")
-    arm_joint(1, 1.5)
-    time.sleep(1)
-    arm_joint(2, 0.5)
-    time.sleep(0.8)
+    arm_joint(5, 0.0)
+    time.sleep(0.5)
     arm_joint(3, -0.5)
     time.sleep(0.5)
+    arm_joint(2, 0.3)
+    time.sleep(0.5)
+    arm_joint(1, 1.5)
+    time.sleep(1)
     arm_gripper("ac")
     return "Robot kol nesneyi birakti"
 
