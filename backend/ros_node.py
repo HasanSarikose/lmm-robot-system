@@ -167,8 +167,26 @@ class CameraNode(Node):
     # ================= OTHER CAMERAS =================
 
     def ika_cb(self, msg):
-        self.process(msg, "ika")
+        now = time.time()
+        if now - self.last_times["ika"] < 1.0 / self.FPS:
+            return
+        self.last_times["ika"] = now
 
+        img = np.frombuffer(msg.data, dtype=np.uint8).reshape(
+            msg.height, msg.width, 3
+        )
+        frame = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        # Kirmizi top tespiti
+        frame, found, cx, cy, area = detect_red_ball(frame)
+
+        if found:
+            cv2.putText(frame, f"IKA: RED BALL ({cx},{cy})",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 0), 2)
+
+        frames["ika"] = frame
+        
     def arm_cb(self, msg):
         self.process(msg, "arm")
 

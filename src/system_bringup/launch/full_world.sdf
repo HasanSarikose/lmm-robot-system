@@ -39,7 +39,7 @@
     <!-- ========== ORTAM OBJELERI ========== -->
     <model name="building1">
       <static>true</static>
-      <pose>3 -3 1 0 0 0</pose>
+      <pose>6 -3 1 0 0 0</pose>
       <link name="link">
         <visual name="v"><geometry><box><size>2 3 2</size></box></geometry>
           <material><ambient>0.6 0.55 0.45 1</ambient><diffuse>0.7 0.65 0.55 1</diffuse></material></visual>
@@ -49,7 +49,7 @@
 
     <model name="building2">
       <static>true</static>
-     <pose>-3 3 1.5 0 0 0.3</pose>
+     <pose>-3 6 1.5 0 0 0.3</pose>
       <link name="link">
         <visual name="v"><geometry><box><size>3 2 3</size></box></geometry>
           <material><ambient>0.5 0.5 0.55 1</ambient><diffuse>0.6 0.6 0.65 1</diffuse></material></visual>
@@ -57,18 +57,7 @@
       </link>
     </model>
 
-    <model name="hangar">
-      <static>true</static>
-      <pose>3 3 0.5 0 0 0</pose>
-      <link name="link">
-        <visual name="walls"><geometry><box><size>2 3 1</size></box></geometry>
-          <material><ambient>0.45 0.45 0.4 1</ambient><diffuse>0.55 0.55 0.5 1</diffuse></material></visual>
-        <visual name="roof"><pose>0 0 0.85 0 0 0</pose><geometry><box><size>4.2 6.2 0.1</size></box></geometry>
-          <material><ambient>0.3 0.25 0.2 1</ambient><diffuse>0.4 0.35 0.3 1</diffuse></material></visual>
-        <collision name="c"><geometry><box><size>4 6 1.5</size></box></geometry></collision>
-      </link>
-    </model>
-
+    
     <!-- Arena Duvarlari (10m x 10m) -->
     <model name="wall_north">
       <static>true</static>
@@ -242,10 +231,10 @@
           <material><ambient>0.1 0.1 0.4 1</ambient><diffuse>0.1 0.1 0.5 1</diffuse></material></visual>
         <visual name="arm_fr"><pose>0.1 -0.1 0 0 0 -0.785</pose>
           <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
-          <material><ambient>0.6 0.0 0.0 1</ambient><diffuse>0.8 0.1 0.1 1</diffuse></material></visual>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.8 0.8 0.8 1</diffuse></material></visual>
         <visual name="arm_fl"><pose>0.1 0.1 0 0 0 0.785</pose>
           <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
-          <material><ambient>0.6 0.0 0.0 1</ambient><diffuse>0.8 0.1 0.1 1</diffuse></material></visual>
+          <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.8 0.8 0.8 1</diffuse></material></visual>
         <visual name="arm_rl"><pose>-0.1 0.1 0 0 0 -0.785</pose>
           <geometry><box><size>0.22 0.018 0.012</size></box></geometry>
           <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
@@ -266,16 +255,16 @@
           <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material></visual>
         <visual name="prop_fr"><pose>0.18 -0.18 0.025 0 0 0</pose>
           <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
-          <material><ambient>0.3 0.0 0.0 0.7</ambient><diffuse>0.5 0.1 0.1 0.7</diffuse></material></visual>
+          <material><ambient>0.3 0.3 0.3 0.7</ambient><diffuse>0.4 0.4 0.4 0.7</diffuse></material></visual>
         <visual name="prop_fl"><pose>0.18 0.18 0.025 0 0 0</pose>
           <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
-          <material><ambient>0.3 0.0 0.0 0.7</ambient><diffuse>0.5 0.1 0.1 0.7</diffuse></material></visual>
+          <material><ambient>0.3 0.3 0.3 0.7</ambient><diffuse>0.4 0.4 0.4 0.7</diffuse></material></visual>
         <visual name="prop_rl"><pose>-0.18 0.18 0.025 0 0 0</pose>
           <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
-          <material><ambient>0.0 0.0 0.3 0.7</ambient><diffuse>0.1 0.1 0.5 0.7</diffuse></material></visual>
+          <material><ambient>0.3 0.3 0.3 0.7</ambient><diffuse>0.4 0.4 0.4 0.7</diffuse></material></visual>
         <visual name="prop_rr"><pose>-0.18 -0.18 0.025 0 0 0</pose>
           <geometry><cylinder><radius>0.07</radius><length>0.003</length></cylinder></geometry>
-          <material><ambient>0.0 0.0 0.3 0.7</ambient><diffuse>0.1 0.1 0.5 0.7</diffuse></material></visual>
+          <material><ambient>0.3 0.3 0.3 0.7</ambient><diffuse>0.4 0.4 0.4 0.7</diffuse></material></visual>
         <visual name="leg_fr"><pose>0.08 -0.06 -0.05 0 0 0</pose>
           <geometry><box><size>0.008 0.008 0.07</size></box></geometry>
           <material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
@@ -365,7 +354,7 @@
                 <max_angle>3.14159</max_angle>
               </horizontal>
             </scan>
-            <range><min>0.1</min><max>12.0</max></range>
+            <range><min>0.5</min><max>12.0</max></range>
           </lidar>
           <topic>ika/lidar</topic>
         </sensor>

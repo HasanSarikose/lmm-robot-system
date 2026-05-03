@@ -45,17 +45,14 @@ function LidarCanvas({ data }) {
     const cx = W / 2;
     const cy = H / 2;
 
-    // 🔥 EN KRİTİK KISIM: normalize
     const maxRange = Math.max(...data.filter(v => isFinite(v)));
 
     data.forEach((r, i) => {
       if (!isFinite(r)) return;
 
       const angle = (i / data.length) * 2 * Math.PI;
-
-      // 🔥 SCALE DÜZELTME
       const norm = r / maxRange;
-      const radius = norm * 150; // canvas içine sığdır
+      const radius = norm * 150;
 
       const x = cx + radius * Math.cos(angle);
       const y = cy + radius * Math.sin(angle);
@@ -66,7 +63,6 @@ function LidarCanvas({ data }) {
       ctx.fill();
     });
 
-    // 🔴 merkez noktası
     ctx.beginPath();
     ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
     ctx.fillStyle = "red";
@@ -89,14 +85,14 @@ function App() {
   const [lidarData, setLidarData] = useState([]);
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
+  const [missionLog, setMissionLog] = useState([]);
 
-  // 🔥 REAL-TIME LIDAR
+  // REAL-TIME LIDAR
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const res = await axios.get("http://localhost:8000/lidar");
         setLidarData(res.data.ranges || []);
-        console.log("LIDAR DATA:", res.data.ranges);
       } catch (err) {
         console.error(err);
       }
@@ -105,14 +101,24 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // MISSION LOG POLLING
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get("http://localhost:8000/mission-log");
+        setMissionLog(res.data.log || []);
+      } catch (err) {}
+    }, 2000);
 
-  // ================= LLM =================
+    return () => clearInterval(interval);
+  }, []);
+
+  // LLM
   const sendPrompt = async () => {
     try {
       const res = await axios.post("http://localhost:8000/llm", {
         prompt: prompt,
       });
-
       setResponse(res.data.response);
     } catch (err) {
       console.error(err);
@@ -159,7 +165,7 @@ function App() {
           <LidarCanvas data={lidarData} />
         </div>
 
-        {/* LLM */}
+        {/* LLM + LOG */}
         <div style={{
           flex: 1,
           background: "#1e293b",
@@ -176,23 +182,46 @@ function App() {
               width: "100%",
               padding: "10px",
               marginBottom: "10px",
-              borderRadius: "5px"
+              borderRadius: "5px",
+              color: "black"
             }}
           />
 
-          <button onClick={sendPrompt}>
+          <button onClick={sendPrompt} style={{
+            padding: "8px 20px",
+            background: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer"
+          }}>
             Gönder
           </button>
 
-          <h3 style={{ marginTop: "15px" }}>🧠 Çıktı:</h3>
+          <h3 style={{ marginTop: "15px" }}>🧠 LLM Çıktı:</h3>
           <pre style={{
-            maxHeight: "200px",
+            maxHeight: "100px",
             overflow: "auto",
             background: "#020617",
             padding: "10px",
-            borderRadius: "5px"
+            borderRadius: "5px",
+            fontSize: "12px"
           }}>
             {response}
+          </pre>
+
+          <h3 style={{ marginTop: "15px" }}>📋 Görev Log:</h3>
+          <pre style={{
+            maxHeight: "250px",
+            overflow: "auto",
+            background: "#020617",
+            padding: "10px",
+            borderRadius: "5px",
+            fontSize: "11px",
+            whiteSpace: "pre-wrap",
+            color: "#4ade80"
+          }}>
+            {missionLog.length > 0 ? missionLog.join("\n") : "Görev bekleniyor..."}
           </pre>
         </div>
 
