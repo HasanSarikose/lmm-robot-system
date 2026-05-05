@@ -15,6 +15,8 @@ from vision.red_ball_detector import detect_red_ball
 
 class CameraNode(Node):
 
+    detected_targets = []
+    
     def __init__(self):
         super().__init__("camera_node")
 
@@ -147,20 +149,19 @@ class CameraNode(Node):
         frame, found, cx, cy, area = detect_red_ball(frame)
 
         if found:
-            print(f"🎯 RED BALL FOUND at {cx}, {cy}")
-
-            # 🔥 ANGLE
-            angle = self.pixel_to_angle(cx, msg.width)
-
-            # 🔥 TARGET
-            target = self.estimate_target(angle)
-
-            if target:
-                tx, ty = target
-                print(f"🌍 TARGET: {tx:.2f}, {ty:.2f}")
-
-                # 🔥 MOVE
-                self.move_to_target(tx, ty)
+            # Drone pozisyonunu al
+            drone_x = getattr(self, 'drone_x', 0)
+            drone_y = getattr(self, 'drone_y', 0)
+            drone_z = getattr(self, 'drone_z', 3)
+            
+            img_w, img_h = msg.width, msg.height
+            fov = 1.8
+            ground_w = 2 * drone_z * math.tan(fov / 2)
+            ground_h = ground_w * img_h / img_w
+            wx = drone_x + (cx - img_w/2) / img_w * ground_w
+            wy = drone_y - (cy - img_h/2) / img_h * ground_h
+            
+            print(f"🎯 RED BALL at pixel({cx},{cy}) -> world({wx:.1f},{wy:.1f})")
 
         frames["drone"] = frame
 
