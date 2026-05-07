@@ -111,7 +111,7 @@ def execute_mission(llm_output, frames_dict=None):
                     found, area, offset = verify_from_ika(frame)
 
                     if found:
-                        if area > 600:
+                        if area > 2000:
                             ika.stop()
                             log(f"[IKA-CAM] Top tam onde! Alan={area:.0f}")
                             found_ball = True

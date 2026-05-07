@@ -78,7 +78,7 @@ class IKACtrl:
                 if line.startswith("ranges:"):
                     try:
                         val = float(line.split(":")[1].strip())
-                        if 0.5 < val < 100:
+                        if 0.2 < val < 100:
                             ranges.append(val)
                     except:
                         pass
@@ -96,7 +96,7 @@ class IKACtrl:
         if not front:
             return False, 999
         min_d = min(front)
-        return min_d < 0.6, min_d
+        return min_d < 1.0, min_d
 
     def stop(self):
         ign_cmd(0.0, 0.0)
@@ -154,22 +154,35 @@ class IKACtrl:
             ranges = self.read_lidar()
             obstacle, min_d = self.check_front(ranges)
 
+            ranges = self.read_lidar()
+            # DÜZELTME: check_front eşiği nerede tanımlıysa onu da 0.8 yapmanı öneririm
+            obstacle, min_d = self.check_front(ranges) 
+
             if obstacle:
-                print(f"[IKA] ENGEL! {min_d:.2f}m")
+                print(f"[IKA] ENGEL TESPIT EDILDI! Mesafe: {min_d:.2f}m. Kacis basliyor...")
                 n = len(ranges)
                 left = ranges[n//2:n//2+n//4] if n > 0 else []
                 right = ranges[n//4:n//2] if n > 0 else []
                 left_avg = sum(left)/len(left) if left else 0
                 right_avg = sum(right)/len(right) if right else 0
-                ign_cmd(-0.15, 0.0)
-                time.sleep(0.5)
+                
+                # 1. SERT FREN VE GERİ ÇIKMA (Kurtulma manevrası)
+                # DÜZELTME: Daha hızlı ve daha uzun süre geri çıkıyoruz ki köşeler kurtulsun
+                ign_cmd(-0.4, 0.0) 
+                time.sleep(1.5) # Eskiden 0.5'ti, şimdi 1.5 saniye geri gidiyor (yaklaşık 60cm)
+                
+                # 2. OLDUĞU YERDE DÖNME (Daha boş olan tarafa)
                 if left_avg > right_avg:
-                    ign_cmd(0.0, 0.5)
+                    print("[IKA] Sol daha bos, sola donuluyor.")
+                    ign_cmd(0.0, 0.8)  # Daha keskin bir dönüş
                 else:
-                    ign_cmd(0.0, -0.5)
-                time.sleep(0.8)
-                ign_cmd(0.2, 0.0)
-                time.sleep(0.6)
+                    print("[IKA] Sag daha bos, saga donuluyor.")
+                    ign_cmd(0.0, -0.8) # Daha keskin bir dönüş
+                time.sleep(1.5) # Dönüş için yeterli zaman ver
+                
+                # 3. YANINDAN GEÇME (İleri atılım)
+                ign_cmd(0.3, 0.0)
+                time.sleep(1.0)
             else:
                 if abs(angle_diff) > 0.2:
                     az = 0.3 if angle_diff > 0 else -0.3
