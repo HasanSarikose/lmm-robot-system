@@ -80,6 +80,300 @@ function LidarCanvas({ data }) {
   );
 }
 
+// ================= MANUAL IKA CONTROL =================
+function ManualIKAControl() {
+  const intervalRef = useRef(null);
+
+  const sendCommand = async (direction) => {
+    try {
+      await axios.post("http://localhost:8000/manual/ika", {
+        direction: direction,
+        speed: 0.16,
+        turn: 0.45,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const startMove = (direction) => {
+    sendCommand(direction);
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    intervalRef.current = setInterval(() => {
+      sendCommand(direction);
+    }, 150);
+  };
+
+  const stopMove = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    sendCommand("stop");
+  };
+
+  const btnStyle = {
+    width: "75px",
+    height: "45px",
+    margin: "4px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#2563eb",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    userSelect: "none",
+  };
+
+  const stopStyle = {
+    ...btnStyle,
+    background: "#dc2626",
+  };
+
+  const controlButton = (label, direction, style = btnStyle) => (
+    <button
+      style={style}
+      onMouseDown={() => startMove(direction)}
+      onMouseUp={stopMove}
+      onMouseLeave={stopMove}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        startMove(direction);
+      }}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        stopMove();
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div
+      style={{
+        background: "#1e293b",
+        padding: "15px",
+        borderRadius: "10px",
+        marginTop: "20px",
+      }}
+    >
+      <h2>🎮 Manuel İKA Kontrol</h2>
+
+      <div style={{ textAlign: "center" }}>
+        <div>
+          {controlButton("↖", "forward_left")}
+          {controlButton("↑", "forward")}
+          {controlButton("↗", "forward_right")}
+        </div>
+
+        <div>
+          {controlButton("←", "left")}
+          {controlButton("■", "stop", stopStyle)}
+          {controlButton("→", "right")}
+        </div>
+
+        <div>
+          {controlButton("↙", "backward_left")}
+          {controlButton("↓", "backward")}
+          {controlButton("↘", "backward_right")}
+        </div>
+      </div>
+
+      <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "10px" }}>
+        Butona basılı tuttuğun sürece İKA hareket eder, bıraktığında durur.
+      </p>
+    </div>
+  );
+}
+// ================= MANUAL ARM CONTROL =================
+function ManualArmControl() {
+  const intervalRef = useRef(null);
+  const [armState, setArmState] = useState({});
+
+  const sendArmCommand = async (payload) => {
+    try {
+      const res = await axios.post("http://localhost:8000/manual/arm", payload);
+      if (res.data.state) {
+        setArmState(res.data.state);
+      } else if (res.data.joint) {
+        setArmState((prev) => ({
+          ...prev,
+          [res.data.joint]: res.data.angle,
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const startJointMove = (joint, direction) => {
+    const action = direction === "plus" ? "joint_plus" : "joint_minus";
+
+    sendArmCommand({
+      action,
+      joint,
+      delta: 0.07,
+    });
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    intervalRef.current = setInterval(() => {
+      sendArmCommand({
+        action,
+        joint,
+        delta: 0.07,
+      });
+    }, 180);
+  };
+
+  const stopJointMove = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const singleCommand = (action) => {
+    stopJointMove();
+    sendArmCommand({ action });
+  };
+
+  const btnStyle = {
+    padding: "8px 12px",
+    margin: "4px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#7c3aed",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    userSelect: "none",
+  };
+
+  const smallBtnStyle = {
+    ...btnStyle,
+    width: "45px",
+  };
+
+  const redBtnStyle = {
+    ...btnStyle,
+    background: "#dc2626",
+  };
+
+  const greenBtnStyle = {
+    ...btnStyle,
+    background: "#16a34a",
+  };
+
+  const jointRow = (joint) => (
+    <div
+      key={joint}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "6px",
+        marginBottom: "6px",
+      }}
+    >
+      <span style={{ width: "45px" }}>J{joint}</span>
+
+      <button
+        style={smallBtnStyle}
+        onMouseDown={() => startJointMove(joint, "minus")}
+        onMouseUp={stopJointMove}
+        onMouseLeave={stopJointMove}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          startJointMove(joint, "minus");
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          stopJointMove();
+        }}
+      >
+        -
+      </button>
+
+      <span style={{ width: "75px", textAlign: "center", fontSize: "12px" }}>
+        {armState[joint] !== undefined
+          ? Number(armState[joint]).toFixed(2)
+          : "0.00"}
+      </span>
+
+      <button
+        style={smallBtnStyle}
+        onMouseDown={() => startJointMove(joint, "plus")}
+        onMouseUp={stopJointMove}
+        onMouseLeave={stopJointMove}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          startJointMove(joint, "plus");
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          stopJointMove();
+        }}
+      >
+        +
+      </button>
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        background: "#1e293b",
+        padding: "15px",
+        borderRadius: "10px",
+        marginTop: "20px",
+      }}
+    >
+      <h2>🦾 Manuel Robot Kol Kontrol</h2>
+
+      <div>
+        {[1, 2, 3, 4, 5, 6].map((j) => jointRow(j))}
+      </div>
+
+      <div style={{ marginTop: "12px" }}>
+        <button style={greenBtnStyle} onClick={() => singleCommand("open_gripper")}>
+          Gripper Aç
+        </button>
+
+        <button style={redBtnStyle} onClick={() => singleCommand("close_gripper")}>
+          Gripper Kapat
+        </button>
+      </div>
+
+      <div style={{ marginTop: "8px" }}>
+        <button style={btnStyle} onClick={() => singleCommand("home")}>
+          Home
+        </button>
+
+        <button style={btnStyle} onClick={() => singleCommand("pick_pose")}>
+          Pick Pose
+        </button>
+
+        <button style={btnStyle} onClick={() => singleCommand("place_pose")}>
+          Place Pose
+        </button>
+      </div>
+
+      <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "10px" }}>
+        Joint butonlarına basılı tuttukça eklem açısı küçük adımlarla değişir.
+      </p>
+    </div>
+  );
+}
+
 // ================= MAIN APP =================
 function App() {
   const [lidarData, setLidarData] = useState([]);
@@ -223,6 +517,8 @@ function App() {
           }}>
             {missionLog.length > 0 ? missionLog.join("\n") : "Görev bekleniyor..."}
           </pre>
+          <ManualIKAControl />
+          <ManualArmControl />
         </div>
 
       </div>
