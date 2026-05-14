@@ -5,6 +5,7 @@ from robot_controllers import DroneCtrl, IKACtrl, ArmCtrl, ign_cmd
 from vision.ball_detector import detect_from_drone, verify_from_ika
 
 mission_log = []
+mission_running = False
 
 
 def get_log():
@@ -12,7 +13,13 @@ def get_log():
 
 
 def execute_mission(llm_output, frames_dict=None):
-    global mission_log
+    global mission_log, mission_running
+
+    if mission_running:
+        mission_log.append("[SISTEM] Zaten calisan bir gorev var. Yeni gorev baslatilmadi.")
+        return "Zaten calisan bir gorev var"
+
+    mission_running = True
     mission_log = []
 
     def log(msg):
@@ -21,8 +28,8 @@ def execute_mission(llm_output, frames_dict=None):
 
     def approach_ball_with_ika_camera(ika, frames_dict, log):
         """
-        IKA tahmini top bolgesine geldikten sonra,
-        IKA kamerasi ile topu merkezleyip yavasca yaklasir.
+        IKA hedef bolgesine geldikten sonra,
+        IKA kamerasi ile kirmizi hedefi merkezleyip yavasca yaklasir.
         """
         if not frames_dict:
             log("[IKA-CAM] Frame kaynagi yok.")
@@ -37,9 +44,9 @@ def execute_mission(llm_output, frames_dict=None):
             ranges = ika.read_lidar()
             obs, min_d = ika.check_front(ranges)
 
-            if obs and min_d < 0.45:
+            if obs and min_d < 0.40:
                 ika.stop()
-                log(f"[IKA-CAM] Cok yakin engel/top: {min_d:.2f}m, duruldu.")
+                log(f"[IKA-CAM] Cok yakin hedef/engel: {min_d:.2f}m, duruldu.")
                 return True
 
             if found:
@@ -47,7 +54,7 @@ def execute_mission(llm_output, frames_dict=None):
 
                 if area > 5000:
                     ika.stop()
-                    log(f"[IKA-CAM] Top erisim mesafesinde. Alan={area:.0f}")
+                    log(f"[IKA-CAM] Hedef erisim mesafesinde. Alan={area:.0f}")
                     return True
 
                 if abs(offset) > 0.18:
@@ -59,7 +66,7 @@ def execute_mission(llm_output, frames_dict=None):
                 time.sleep(0.25)
 
             else:
-                log(f"[IKA-CAM] Top gorulmedi. Arama step={step}")
+                log(f"[IKA-CAM] Hedef gorulmedi. Arama step={step}")
 
                 if step < 15:
                     ign_cmd(0.0, 0.22)
@@ -77,118 +84,201 @@ def execute_mission(llm_output, frames_dict=None):
         return False
 
     def run():
-        drone = DroneCtrl()
-        ika = IKACtrl()
-        arm = ArmCtrl()
+        global mission_running
 
-        log("=" * 50)
-        log("GOREV BASLADI")
-        log("=" * 50)
+        try:
+            drone = DroneCtrl()
+            ika = IKACtrl()
+            arm = ArmCtrl()
 
-        # ADIM 1: Drone tarama
-        log("[ADIM 1] Drone kalkiyor...")
-        drone.takeoff(3)
-        time.sleep(1)
+            log("=" * 50)
+            log("GOREV BASLADI")
+            log("=" * 50)
 
-        scan_points = [
-            (-4, -2), (-2, -2), (0, -2), (2, -2), (4, -2),
-            (-4, 0), (-2, 0), (0, 0), (2, 0), (4, 0),
-            (-4, 2), (-2, 2), (0, 2), (2, 2), (4, 2),
-            (-4, 4), (-2, 4), (0, 4), (2, 4), (4, 4),
-            (-3, -1), (-1, -1), (1, -1), (3, -1),
-            (-3, 1), (-1, 1), (1, 1), (3, 1),
-            (-3, 3), (-1, 3), (1, 3), (3, 3),
-        ]
+            log("[ADIM 1] Drone kalkiyor...")
+            drone.takeoff(3)
+            time.sleep(1)
 
-        all_detections = []
+            # ID'yi detector'dan DEGIL, taranan bolgeden veriyoruz.
+            # Koordinat yine kameradan merkezleme ile aliniyor.
+            scan_points = [
+                {
+                    "id": "red_triangle",
+                    "shape": "triangle",
+                    "x": -3,
+                    "y": 2,
+                },
+                {
+                    "id": "red_circle",
+                    "shape": "circle",
+                    "x": 4,
+                    "y": -1,
+                },
+                {
+                    "id": "red_square",
+                    "shape": "square",
+                    "x": 3,
+                    "y": 3,
+                },
+            ]
 
-        for i, (sx, sy) in enumerate(scan_points):
-            log(f"[DRONE] Tarama {i + 1}/{len(scan_points)}: ({sx}, {sy})")
-            drone.goto(sx, sy, 3)
-            time.sleep(3)
+            found_targets = {}
 
-            if frames_dict:
+            for i, target in enumerate(scan_points):
+                target_id = target["id"]
+                target_shape = target["shape"]
+                sx = target["x"]
+                sy = target["y"]
+
+                log(
+                    f"[DRONE] Tarama {i + 1}/{len(scan_points)}: "
+                    f"{target_id} bolgesi ({sx}, {sy})"
+                )
+
+                drone.goto(sx, sy, 3)
+                time.sleep(1.2)
+
+                if not frames_dict:
+                    log("[DRONE] Frame kaynagi yok.")
+                    continue
+
                 frame = frames_dict.get("drone")
-                balls = detect_from_drone(frame, drone.x, drone.y, drone.z)
-                all_detections.extend(balls)
+                detections = detect_from_drone(frame, drone.x, drone.y, drone.z)
 
-        # NMS / clustering
-        clusters = []
+                if not detections:
+                    log(f"[DRONE] {target_id} bolgesinde kirmizi hedef gorulmedi.")
+                    continue
 
-        for det in all_detections:
-            merged = False
+                # Bu bolgedeki en iyi kirmizi hedef: kameranin merkezine en yakin olan.
+                best = min(detections, key=lambda d: d.get("center_error", 999))
 
-            for c in clusters:
-                if abs(c["x"] - det["x"]) < 1.5 and abs(c["y"] - det["y"]) < 1.5:
-                    c["count"] += 1
-                    c["x"] = (c["x"] * (c["count"] - 1) + det["x"]) / c["count"]
-                    c["y"] = (c["y"] * (c["count"] - 1) + det["y"]) / c["count"]
-                    merged = True
-                    break
+                # ID ve shape kesin olarak bolgeden atanir.
+                best["id"] = target_id
+                best["shape"] = target_shape
 
-            if not merged:
-                clusters.append({
-                    "x": det["x"],
-                    "y": det["y"],
-                    "count": 1,
-                })
+                if best.get("centered", False):
+                    found_targets[target_id] = best
+                    log(
+                        f"[DRONE] HEDEF BULUNDU: {target_id} "
+                        f"({best['x']:.2f}, {best['y']:.2f}) "
+                        f"center_error={best['center_error']}"
+                    )
+                    continue
 
-        confirmed = [b for b in clusters if b["count"] >= 3]
+                log(
+                    f"[DRONE] {target_id} goruldu ama merkezde degil. "
+                    f"Refine noktasi=({best['x']:.2f}, {best['y']:.2f}) "
+                    f"center_error={best['center_error']}"
+                )
 
-        log(
-            f"[DRONE] Tarama bitti. "
-            f"Ham:{len(all_detections)} Cluster:{len(clusters)} Onaylanan:{len(confirmed)}"
-        )
+                drone.goto(best["x"], best["y"], 3)
+                time.sleep(1.0)
 
-        for i, b in enumerate(confirmed):
-            log(f"  Top {i + 1}: ({b['x']:.1f}, {b['y']:.1f}) - {b['count']}x")
+                frame2 = frames_dict.get("drone")
+                refined = detect_from_drone(frame2, drone.x, drone.y, drone.z)
 
-        if not confirmed:
-            log("[GOREV] Top bulunamadi.")
-            drone.land()
-            return
+                if not refined:
+                    log(f"[DRONE] Refine sonrasi {target_id} tekrar gorulemedi.")
+                    continue
 
-        drone.goto(0, 0, 3)
-        log("[DRONE] Koordinatlar IKA'ya aktarildi.")
+                best2 = min(refined, key=lambda d: d.get("center_error", 999))
+                best2["id"] = target_id
+                best2["shape"] = target_shape
 
-        # ADIM 2: Her top icin git + kamera ile yaklas + topla
-        for i, ball in enumerate(confirmed):
-            log(f"[ADIM 2.{i + 1}] Top {i + 1}: ({ball['x']:.1f}, {ball['y']:.1f})")
-
-            arm.home()
-            time.sleep(0.5)
-
-            success = ika.navigate_to(ball["x"], ball["y"], stop_distance=0.9)
-
-            if success:
-                log("[IKA] Bolgeye ulasildi. Kamera ile topa yaklasiliyor...")
-
-                found_ball = approach_ball_with_ika_camera(ika, frames_dict, log)
-
-                if found_ball:
-                    log(f"[GOREV] Top {i + 1} bulundu! Kol topluyor...")
-                    arm.pick()
-                    time.sleep(1)
-
-                    log(f"[GOREV] Top {i + 1} toplandi. Eve donus...")
-                    arm.home()
-                    ika.return_home()
-
-                    arm.place()
-                    log(f"[GOREV] Top {i + 1} birakildi.")
+                if best2.get("centered", False):
+                    found_targets[target_id] = best2
+                    log(
+                        f"[DRONE] HEDEF MERKEZLENDI: {target_id} "
+                        f"({best2['x']:.2f}, {best2['y']:.2f}) "
+                        f"center_error={best2['center_error']}"
+                    )
                 else:
-                    log(f"[GOREV] Top {i + 1} kamerada bulunamadi.")
-            else:
-                log(f"[GOREV] Top {i + 1} bolgeye ulasilamadi.")
+                    log(
+                        f"[DRONE] {target_id} hala merkezde degil. "
+                        f"Kaydedilmedi. center_error={best2['center_error']}"
+                    )
 
-        # ADIM 3: Bitis
-        drone.land()
-        arm.home()
-        ika.stop()
+            confirmed = list(found_targets.values())
 
-        log("=" * 50)
-        log("GOREV TAMAMLANDI!")
-        log("=" * 50)
+            log(f"[DRONE] Tarama bitti. Onaylanan hedef sayisi: {len(confirmed)}")
+
+            for i, h in enumerate(confirmed):
+                log(
+                    f"  Hedef {i + 1}: id={h['id']} shape={h['shape']} "
+                    f"koord=({h['x']:.2f}, {h['y']:.2f}) "
+                    f"center_error={h['center_error']}"
+                )
+
+            if not confirmed:
+                log("[GOREV] Hedef bulunamadi.")
+                drone.land()
+                return
+
+            drone.goto(0, 0, 3)
+            log("[DRONE] Koordinatlar IKA'ya aktarildi.")
+
+            # ADIM 2: IKA hedeflere gider
+            for i, target in enumerate(confirmed):
+                target_id = target.get("id", "unknown")
+                target_shape = target.get("shape", "unknown")
+
+                log(
+                    f"[ADIM 2.{i + 1}] Hedef {i + 1}: "
+                    f"{target_id} / {target_shape} "
+                    f"({target['x']:.2f}, {target['y']:.2f})"
+                )
+
+                arm.home()
+                time.sleep(0.5)
+
+                success = ika.navigate_to(target["x"], target["y"], stop_distance=0.9)
+
+                if success:
+                    log("[IKA] Bolgeye ulasildi. Kamera ile hedefe yaklasiliyor...")
+
+                    found_target = approach_ball_with_ika_camera(ika, frames_dict, log)
+
+                    if found_target:
+                        arm.pick()
+                        time.sleep(0.5)
+
+                        carry_stop_event, carry_thread = arm.start_carrying_target(target_id, ika)
+
+                        log(f"[GOREV] {target_id} icin eve donus...")
+                        arm.home()
+                        ika.return_home()
+
+                        carry_stop_event.set()
+                        carry_thread.join(timeout=1.0)
+                        arm.place()
+                        drop_positions = {
+                            "red_triangle": (-2.4, -0.7),
+                            "red_circle": (-2.0, -0.7),
+                            "red_square": (-1.6, -0.7),
+                        }
+
+                        drop_x, drop_y = drop_positions.get(target_id, (-2.0, -0.7))
+                        arm.place_target(target_id, drop_x, drop_y)
+
+                        log(f"[GOREV] {target_id} hedefi tamamlandi.")
+                    else:
+                        log(f"[GOREV] {target_id} kamerada bulunamadi.")
+                else:
+                    log(f"[GOREV] {target_id} bolgesine ulasilamadi.")
+
+            drone.land()
+            arm.home()
+            ika.stop()
+
+            log("=" * 50)
+            log("GOREV TAMAMLANDI!")
+            log("=" * 50)
+
+        except Exception as e:
+            log(f"[HATA] Gorev sirasinda hata olustu: {e}")
+
+        finally:
+            mission_running = False
 
     t = threading.Thread(target=run, daemon=True)
     t.start()

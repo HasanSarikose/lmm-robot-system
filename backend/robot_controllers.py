@@ -1,7 +1,7 @@
 import subprocess
 import time
 import math
-
+import threading
 
 def ign_cmd(lx, az):
     """Tek bir hareket komutu gonder ve process'i kapat."""
@@ -419,3 +419,57 @@ class ArmCtrl:
         time.sleep(0.5)
 
         self.home()
+    
+    def set_model_pose(self, model_name, x, y, z, yaw=0.0):
+       
+        try:
+            subprocess.run([
+                "ign", "service",
+                "-s", "/world/lmm_world/set_pose",
+                "--reqtype", "ignition.msgs.Pose",
+                "--reptype", "ignition.msgs.Boolean",
+                "--timeout", "300",
+                "--req",
+                (
+                    f"name: '{model_name}', "
+                    f"position: {{x: {x}, y: {y}, z: {z}}}, "
+                    f"orientation: {{z: {math.sin(yaw / 2)}, w: {math.cos(yaw / 2)}}}"
+                )
+            ], capture_output=True, timeout=5)
+        except Exception as e:
+            print(f"[KOL] set_model_pose hata: {e}")
+
+    def start_carrying_target(self, target_id, ika):
+        """
+        Hedefi İKA'nın üstünde tasiniyor gibi gunceller.
+        return: stop_event, thread
+        """
+        stop_event = threading.Event()
+
+        def carry_loop():
+            print(f"[KOL] {target_id} tasima modu basladi")
+
+            while not stop_event.is_set():
+                x, y, yaw = ika.read_odom()
+
+                # Hedefi İKA'nın üstünde/arkaya yakin bir noktada tut.
+                carry_x = x - 0.15 * math.cos(yaw)
+                carry_y = y - 0.15 * math.sin(yaw)
+                carry_z = 0.45
+
+                self.set_model_pose(target_id, carry_x, carry_y, carry_z, yaw)
+                time.sleep(0.2)
+
+            print(f"[KOL] {target_id} tasima modu bitti")
+
+        t = threading.Thread(target=carry_loop, daemon=True)
+        t.start()
+
+        return stop_event, t
+
+    def place_target(self, target_id, drop_x, drop_y, drop_z=0.03):
+        """
+        Hedefi home/drop alanina birakir.
+        """
+        print(f"[KOL] {target_id} drop noktasina birakiliyor: ({drop_x}, {drop_y})")
+        self.set_model_pose(target_id, drop_x, drop_y, drop_z, 0.0)
