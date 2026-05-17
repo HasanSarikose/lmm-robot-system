@@ -2,6 +2,7 @@ import subprocess
 import time
 import math
 import threading
+from state_buffer import robot_state, state_lock
 
 def ign_cmd(lx, az):
     """Tek bir hareket komutu gonder ve process'i kapat."""
@@ -87,31 +88,15 @@ class IKACtrl:
         self.start_y = 0.0
 
     def read_lidar(self):
-        try:
-            result = subprocess.run(
-                ["ign", "topic", "-e", "-t", "/ika/lidar", "--num", "1"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+        """
+        Eski ign topic subprocess okuması yerine,
+        ros_node.py içindeki LaserScan subscriber'dan gelen veriyi okur.
+        """
+        with state_lock:
+            if not robot_state.get("lidar_ready", False):
+                return []
 
-            ranges = []
-
-            for line in result.stdout.split("\n"):
-                line = line.strip()
-
-                if line.startswith("ranges:"):
-                    try:
-                        val = float(line.split(":")[1].strip())
-                        if 0.2 < val < 100:
-                            ranges.append(val)
-                    except Exception:
-                        pass
-
-            return ranges
-
-        except Exception:
-            return []
+            return list(robot_state.get("lidar_ranges", []))
 
     def check_front(self, ranges):
         if not ranges:
@@ -184,62 +169,19 @@ class IKACtrl:
         ign_cmd(0.0, 0.0)
 
     def read_odom(self):
-        try:
-            result = subprocess.run(
-                ["ign", "topic", "-e", "-t", "/ika/odom", "--num", "1"],
-                capture_output=True,
-                text=True,
-                timeout=5
+        """
+        Eski ign topic subprocess + string parse yerine,
+        ros_node.py içindeki Odometry subscriber'dan gelen state'i okur.
+        """
+        with state_lock:
+            if not robot_state.get("ika_odom_ready", False):
+                return self.start_x, self.start_y, 0.0
+
+            return (
+                float(robot_state.get("ika_x", self.start_x)),
+                float(robot_state.get("ika_y", self.start_y)),
+                float(robot_state.get("ika_yaw", 0.0)),
             )
-
-            x = y = qz = 0.0
-            qw = 1.0
-
-            in_pos = False
-            in_orient = False
-
-            for line in result.stdout.split("\n"):
-                line = line.strip()
-
-                if "position" in line and "orientation" not in line:
-                    in_pos = True
-                    in_orient = False
-
-                elif "orientation" in line:
-                    in_orient = True
-                    in_pos = False
-
-                elif in_pos and line.startswith("x:"):
-                    try:
-                        x = float(line.split(":")[1].strip())
-                    except Exception:
-                        pass
-
-                elif in_pos and line.startswith("y:"):
-                    try:
-                        y = float(line.split(":")[1].strip())
-                    except Exception:
-                        pass
-
-                elif in_orient and line.startswith("z:"):
-                    try:
-                        qz = float(line.split(":")[1].strip())
-                    except Exception:
-                        pass
-
-                elif in_orient and line.startswith("w:"):
-                    try:
-                        qw = float(line.split(":")[1].strip())
-                    except Exception:
-                        pass
-                    in_orient = False
-
-            yaw = 2 * math.atan2(qz, qw)
-
-            return x, y, yaw
-
-        except Exception:
-            return 0.0, 0.0, 0.0
 
     def navigate_to(self, target_x, target_y, stop_distance=0.9, max_steps=220):
         """
