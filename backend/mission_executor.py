@@ -102,37 +102,30 @@ def execute_mission(llm_output, frames_dict=None):
             # ID'yi detector'dan DEGIL, taranan bolgeden veriyoruz.
             # Koordinat yine kameradan merkezleme ile aliniyor.
             scan_points = [
-                {
-                    "id": "red_triangle",
-                    "shape": "triangle",
-                    "x": -3,
-                    "y": 2,
-                },
-                {
-                    "id": "red_circle",
-                    "shape": "circle",
-                    "x": 4,
-                    "y": -1,
-                },
-                {
-                    "id": "red_square",
-                    "shape": "square",
-                    "x": 3,
-                    "y": 3,
-                },
+                (4,-2),
+                (0, -2),
+                (4, -1),
+                (-4, 1),
+                (0, 1),
+                (4, 1),
+                (-4, 4),
+                (0, 4),
+                (4, 4),
             ]
 
+            expected_target_ids = {
+                "red_circle",
+                "red_square",
+                "red_triangle",
+            }
             found_targets = {}
 
-            for i, target in enumerate(scan_points):
-                target_id = target["id"]
-                target_shape = target["shape"]
-                sx = target["x"]
-                sy = target["y"]
+            for i, scan_point in enumerate(scan_points):
+                sx, sy = scan_point
 
                 log(
                     f"[DRONE] Tarama {i + 1}/{len(scan_points)}: "
-                    f"{target_id} bolgesi ({sx}, {sy})"
+                    f"arama noktasi ({sx}, {sy})"
                 )
 
                 drone.goto(sx, sy, 3)
@@ -146,24 +139,51 @@ def execute_mission(llm_output, frames_dict=None):
                 detections = detect_from_drone(frame, drone.x, drone.y, drone.z)
 
                 if not detections:
-                    log(f"[DRONE] {target_id} bolgesinde kirmizi hedef gorulmedi.")
+                    log("[DRONE] Bu arama noktasinda kirmizi geometrik hedef gorulmedi.")
                     continue
 
-                # Bu bolgedeki en iyi kirmizi hedef: kameranin merkezine en yakin olan.
-                best = min(detections, key=lambda d: d.get("center_error", 999))
+                # Daha önce kaydedilmiş ID'leri tekrar işleme.
+                new_detections = [
+                    d for d in detections
+                    if d.get("id") in expected_target_ids
+                    and d.get("id") not in found_targets
+                ]
 
-                # ID ve shape kesin olarak bolgeden atanir.
-                best["id"] = target_id
-                best["shape"] = target_shape
+                if not new_detections:
+                    log("[DRONE] Gorulen hedefler daha once kaydedilmis.")
+                    continue
 
-                if best.get("centered", False):
-                    found_targets[target_id] = best
+                # Önce zaten merkezde olan hedefleri direkt kaydet.
+                centered_detections = [
+                    d for d in new_detections
+                    if d.get("centered", False)
+                ]
+
+                for det in centered_detections:
+                    target_id = det["id"]
+                    found_targets[target_id] = det
+
                     log(
                         f"[DRONE] HEDEF BULUNDU: {target_id} "
-                        f"({best['x']:.2f}, {best['y']:.2f}) "
-                        f"center_error={best['center_error']}"
+                        f"shape={det['shape']} "
+                        f"({det['x']:.2f}, {det['y']:.2f}) "
+                        f"center_error={det['center_error']}"
                     )
+
+                # Eğer bu frame'de yeni merkezlenmiş hedef bulunduysa devam et.
+                if centered_detections:
+                    if len(found_targets) == len(expected_target_ids):
+                        log("[DRONE] Tum hedef ID'leri bulundu. Tarama erken bitiriliyor.")
+                        break
                     continue
+
+                # Merkezde değilse, kameraya en yakın yeni hedefi refine et.
+                best = min(
+                    new_detections,
+                    key=lambda d: d.get("center_error", 999)
+                )
+
+                target_id = best["id"]
 
                 log(
                     f"[DRONE] {target_id} goruldu ama merkezde degil. "
@@ -181,23 +201,69 @@ def execute_mission(llm_output, frames_dict=None):
                     log(f"[DRONE] Refine sonrasi {target_id} tekrar gorulemedi.")
                     continue
 
-                best2 = min(refined, key=lambda d: d.get("center_error", 999))
-                best2["id"] = target_id
-                best2["shape"] = target_shape
+                # Refine sonrasında aynı ID'yi ara.
+                same_id_refined = [
+                    d for d in refined
+                    if d.get("id") == target_id
+                ]
+
+                if not same_id_refined:
+                    nearest = min(
+                        refined,
+                        key=lambda d: ((d.get("x", 999) - best["x"]) ** 2 + (d.get("y", 999) - best["y"]) ** 2) ** 0.5
+                    )
+
+                    dist_to_previous = (
+                        (nearest.get("x", 999) - best["x"]) ** 2 +
+                        (nearest.get("y", 999) - best["y"]) ** 2
+                    ) ** 0.5
+
+                    if target_id == "red_triangle" and dist_to_previous < 0.8:
+                        nearest["id"] = "red_triangle"
+                        nearest["shape"] = "triangle"
+                        same_id_refined = [nearest]
+
+                        log(
+                            f"[DRONE] Refine sonrasi triangle yakin hedefle dogrulandi. "
+                            f"koord=({nearest['x']:.2f}, {nearest['y']:.2f}) "
+                            f"mesafe={dist_to_previous:.2f}"
+                        )
+                    else:
+                        log(f"[DRONE] Refine sonrasi {target_id} ID'si dogrulanamadi.")
+                        continue
+                best2 = min(
+                    same_id_refined,
+                    key=lambda d: d.get("center_error", 999)
+                )
 
                 if best2.get("centered", False):
                     found_targets[target_id] = best2
+
                     log(
                         f"[DRONE] HEDEF MERKEZLENDI: {target_id} "
+                        f"shape={best2['shape']} "
                         f"({best2['x']:.2f}, {best2['y']:.2f}) "
                         f"center_error={best2['center_error']}"
                     )
+
+                    if len(found_targets) == len(expected_target_ids):
+                        log("[DRONE] Tum hedef ID'leri bulundu. Tarama erken bitiriliyor.")
+                        break
                 else:
                     log(
                         f"[DRONE] {target_id} hala merkezde degil. "
                         f"Kaydedilmedi. center_error={best2['center_error']}"
                     )
 
+            confirmed = list(found_targets.values())
+
+
+            for i, h in enumerate(confirmed):
+                log(
+                    f"  Hedef {i + 1}: id={h['id']} shape={h['shape']} "
+                    f"koord=({h['x']:.2f}, {h['y']:.2f}) "
+                    f"center_error={h['center_error']}"
+                )
             confirmed = list(found_targets.values())
 
             log(f"[DRONE] Tarama bitti. Onaylanan hedef sayisi: {len(confirmed)}")

@@ -32,13 +32,13 @@ def _red_mask(frame, lower_sat=100, lower_val=50):
 
     mask = mask1 | mask2
 
+    # Fazla dilation köşeleri yuvarlatıp üçgen/kareyi circle gibi gösteriyordu.
+    # Bu yüzden daha hafif morfoloji kullanıyoruz.
     open_kernel = np.ones((3, 3), np.uint8)
-    close_kernel = np.ones((15, 15), np.uint8)
-    dilate_kernel = np.ones((9, 9), np.uint8)
+    close_kernel = np.ones((7, 7), np.uint8)
 
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, open_kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, close_kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_DILATE, dilate_kernel)
 
     return mask
 
@@ -50,37 +50,66 @@ def _classify_shape(cnt):
     if area <= 0 or perimeter <= 0:
         return "unknown", "red_unknown"
 
-    approx = cv2.approxPolyDP(cnt, 0.04 * perimeter, True)
-    vertices = len(approx)
+    x, y, w, h = cv2.boundingRect(cnt)
 
+    if w <= 0 or h <= 0:
+        return "unknown", "red_unknown"
+
+    aspect_ratio = w / float(h)
+    extent = area / float(w * h)
     circularity = 4 * math.pi * area / (perimeter * perimeter)
 
-    x, y, w, h = cv2.boundingRect(cnt)
-    aspect_ratio = w / float(h) if h > 0 else 0
+    # Köşe sayısı için biraz daha yüksek epsilon kullanıyoruz.
+    # Böylece üçgen/kare köşeleri daha net sadeleşir.
+    approx = cv2.approxPolyDP(cnt, 0.055 * perimeter, True)
+    vertices = len(approx)
 
+    print(
+        f"[SHAPE-DEBUG] vertices={vertices} "
+        f"circularity={circularity:.3f} "
+        f"aspect={aspect_ratio:.2f} "
+        f"extent={extent:.2f} "
+        f"area={area:.0f}"
+    )
+
+    # 1) Üçgen: en önce kontrol edilmeli.
     if vertices == 3:
         return "triangle", "red_triangle"
 
-    if vertices == 4 and 0.70 <= aspect_ratio <= 1.30:
-        if 0.70 <= aspect_ratio <= 1.30:
-            return "square", "red_square"
+    # 2) Kare: 4 köşe + yaklaşık eşit en/boy + yüksek doluluk.
+    if vertices == 4 and 0.65 <= aspect_ratio <= 1.35 and extent > 0.55:
         return "square", "red_square"
 
-    if circularity > 0.55:
+    # 3) Circle: gerçekten yüksek circularity bekliyoruz.
+    # Önceki 0.68 çok düşüktü; kare/üçgeni de circle yapıyordu.
+    if circularity > 0.82:
         return "circle", "red_circle"
+
+    # 4) Fallback karar:
+    # Ortamda sadece üç kırmızı geometrik hedef var.
+    # Eğer circle değilse ve kare değilse, çoğu durumda üçgen kabul edilebilir.
+    if extent < 0.65:
+        return "triangle", "red_triangle"
+
+    if 0.65 <= aspect_ratio <= 1.35 and extent >= 0.65:
+        return "square", "red_square"
 
     return "unknown", "red_unknown"
 
-
 def detect_from_drone(frame, drone_x, drone_y, drone_z, drone_yaw=0.0):
     """
-    Drone kamerasindan kirmizi geometrik hedefleri tespit eder.
+    Drone kamerasından kırmızı geometrik hedefleri tespit eder.
 
-    Yeni mantik:
-    - Hedefin sekli bulunur: circle, square, triangle
-    - Her hedefe sabit id atanir: red_circle, red_square, red_triangle
-    - Hedef kameranin merkezine yakin degilse centered=False doner
-    - centered=True ise koordinat daha guvenilir kabul edilir
+    Mantık:
+    - Kırmızı maske çıkarılır.
+    - Konturlar bulunur.
+    - Her kontur circle / square / triangle olarak sınıflandırılır.
+    - ID görüntüden üretilir:
+        circle   -> red_circle
+        square   -> red_square
+        triangle -> red_triangle
+    - Hedef kamera merkezine yakınsa centered=True döner.
+    - Dünya koordinatı drone konumu + kamera piksel offsetinden hesaplanır.
     """
 
     if frame is None:
@@ -106,6 +135,7 @@ def detect_from_drone(frame, drone_x, drone_y, drone_z, drone_yaw=0.0):
         TARGET_RADIUS_M / (2 * drone_z * math.tan(CAMERA_FOV_RAD / 2))
     ) * img_w
 
+    # Üçgen / kare / daire farklı alan verebileceği için min_area düşük tutuldu.
     min_area = 20
     max_area = math.pi * (expected_radius_px * 5.0) ** 2
 
@@ -132,19 +162,23 @@ def detect_from_drone(frame, drone_x, drone_y, drone_z, drone_yaw=0.0):
         # Görüntü merkezine göre normalize offset
         norm_x = (cx - img_w / 2) / (img_w / 2)
         norm_y = (cy - img_h / 2) / (img_h / 2)
-        center_error = math.sqrt(norm_x * norm_x + norm_y * norm_y)
 
+        center_error = math.sqrt(norm_x * norm_x + norm_y * norm_y)
         centered = center_error <= CENTER_TOLERANCE
 
-        # Kamera düzleminden lokal dünya offseti
+        # Kamera düzleminden lokal offset
         local_x = (cx - img_w / 2) / img_w * ground_w
         local_y = -(cy - img_h / 2) / img_h * ground_h
 
+        # Daha önce loglardan doğrulanan eksen dönüşümü:
+        # görüntü y offseti dünya x'e,
+        # görüntü x offseti dünya y'ye ters işaretle etki ediyor.
         body_dx = local_y
         body_dy = -local_x
 
         wx = drone_x + body_dx * math.cos(drone_yaw) - body_dy * math.sin(drone_yaw)
         wy = drone_y + body_dx * math.sin(drone_yaw) + body_dy * math.cos(drone_yaw)
+
         if abs(wx) > WORLD_LIMIT_M or abs(wy) > WORLD_LIMIT_M:
             continue
 
@@ -169,7 +203,8 @@ def detect_from_drone(frame, drone_x, drone_y, drone_z, drone_yaw=0.0):
             f"world=({wx:.2f},{wy:.2f}) area={area:.0f}"
         )
 
-    # Aynı frame içinde aynı ID birden fazla çıkarsa, merkeze en yakın olanı al.
+    # Aynı frame içinde aynı ID birden fazla çıkarsa,
+    # merkeze en yakın olanı al.
     best_by_id = {}
 
     for det in detections:
@@ -187,12 +222,12 @@ def detect_from_drone(frame, drone_x, drone_y, drone_z, drone_yaw=0.0):
 
 def verify_from_ika(frame):
     """
-    IKA kamerasinda kirmizi hedef var mi kontrol eder.
+    IKA kamerasında kırmızı hedef var mı kontrol eder.
 
-    Donen deger:
+    Dönen değer:
     - found: bool
-    - area: kontur alani, yaklasma gostergesi
-    - offset: -1 sol, 0 merkez, +1 sag
+    - area: kontur alanı, yaklaşma göstergesi
+    - offset: -1 sol, 0 merkez, +1 sağ
     """
 
     if frame is None:
@@ -224,6 +259,9 @@ def verify_from_ika(frame):
 
     offset = (cx - img_w / 2) / (img_w / 2)
 
-    print(f"[IKA-CAM] Kirmizi hedef bulundu. area={area:.0f}, offset={offset:.2f}")
+    print(
+        f"[IKA-CAM] Kirmizi hedef bulundu. "
+        f"area={area:.0f}, offset={offset:.2f}"
+    )
 
     return True, float(area), float(offset)
