@@ -41,7 +41,7 @@ def detect_red_ball(frame):
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0,255,0), 2)
             cv2.circle(frame, (cx, cy), 5, (0,0,255), -1)
 
-            cv2.putText(frame, "RED BALL",
+            cv2.putText(frame, "RED TARGET",
                         (x, y-10),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.6, (0,255,0), 2)
