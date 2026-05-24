@@ -317,53 +317,128 @@ class ArmCtrl:
         self.joint(1, -0.15)
         time.sleep(0.4)
 
-        self.joint(2, 1.57)
+        self.joint(2, 1.62)
         time.sleep(0.8)
 
-        self.joint(3, 0.52)
+        self.joint(3, 0.62)
         time.sleep(0.8)
 
-        self.joint(4, -0.28)
+        self.joint(4, -0.35)
         time.sleep(0.4)
 
-        self.joint(5, 0.11)
+        self.joint(5, 0.08)
         time.sleep(0.4)
 
         self.joint(6, 0.35)
         time.sleep(0.4)
 
-        # Topu kavra
+        # Gripper kapa
         self.gripper("kapa")
         time.sleep(0.8)
 
-        # Topu aldiktan sonra hafif yukari/toparlama hareketi
+        print("[KOL] Gripper Kapandı, attac için hazır")
+
+    def lift_after_attach(self):
+        """
+        Attach komutundan sonra hedefi yerden kaldırmak için kullanılır.
+        Attach'tan önce çağrılmamalı.
+        """
+        print("[KOL] Attach sonrasi hedef kaldiriliyor...")
+
         self.joint(2, 0.8)
         time.sleep(0.8)
 
         self.joint(3, -0.2)
         time.sleep(0.8)
 
-        print("[KOL] Toplama hareketi tamamlandi")
+        self.joint(4, 0.0)
+        time.sleep(0.4)
 
+        print("[KOL] Hedef tasima pozisyonuna alindi.")
+    
     def place(self):
         print("[KOL] Birakma...")
 
-        self.joint(1, 1.5)
-        time.sleep(1)
+        self.joint(1, 0.0)
+        time.sleep(0.5)
 
-        self.joint(2, 0.8)
-        time.sleep(1)
+        self.joint(2, 1.15)
+        time.sleep(0.7)
 
-        self.joint(3, -1.0)
-        time.sleep(1)
+        self.joint(3, 0.25)
+        time.sleep(0.7)
+        
+        self.joint(4, -0.20)
+        time.sleep(0.5)
+        
+        self.joint(5, 0.05)
+        time.sleep(0.5)
+        
+        self.joint(6, 0.0)
 
         self.gripper("ac")
         time.sleep(0.5)
 
-        self.home()
-    
+        print(" [KOL] Gripper acildi, detach için hazir.")
+
+    def _publish_empty(self, topic):
+        """
+        Ignition/Gazebo topic'e Empty mesajı gönderir.
+        DetachableJoint attach/detach için kullanılır.
+        """
+        try:
+            subprocess.run([
+                "ign", "topic",
+                "-t", topic,
+                "-m", "ignition.msgs.Empty",
+                "-p", "unused: true"
+            ], capture_output=True, timeout=2)
+            return True
+        except Exception as e:
+            print(f"[KOL] Empty publish hata: {topic} -> {e}")
+            return False
+
+    def attach_target(self, target_id):
+        """
+        Hedefi gripper_base linkine DetachableJoint ile bağlar.
+        target_id: red_circle, red_square, red_triangle
+        """
+        topic = f"/{target_id}/attach"
+        print(f"[KOL] Attach istegi: {target_id} -> {topic}")
+
+        ok = self._publish_empty(topic)
+        time.sleep(0.4)
+
+        if ok:
+            print(f"[KOL] {target_id} attach komutu gonderildi.")
+        else:
+            print(f"[KOL] {target_id} attach komutu basarisiz.")
+
+        return ok
+
+    def detach_target(self, target_id):
+        """
+        Hedefi gripper_base linkinden ayırır.
+        """
+        topic = f"/{target_id}/detach"
+        print(f"[KOL] Detach istegi: {target_id} -> {topic}")
+
+        ok = self._publish_empty(topic)
+        time.sleep(0.4)
+
+        if ok:
+            print(f"[KOL] {target_id} detach komutu gonderildi.")
+        else:
+            print(f"[KOL] {target_id} detach komutu basarisiz.")
+
+        return ok
+
     def set_model_pose(self, model_name, x, y, z, yaw=0.0):
-       
+        """
+        Eski yardımcı fonksiyon.
+        Artık taşıma için kullanılmamalı.
+        Sadece bırakma sonrası hedefi drop alanına düzgün yerleştirmek için kullanılabilir.
+        """
         try:
             subprocess.run([
                 "ign", "service",
@@ -383,18 +458,18 @@ class ArmCtrl:
 
     def start_carrying_target(self, target_id, ika):
         """
-        Hedefi İKA'nın üstünde tasiniyor gibi gunceller.
-        return: stop_event, thread
+        LEGACY:
+        Eski set_model_pose tabanli tasima sistemi.
+        Mission akışında artık kullanılmamalı.
         """
         stop_event = threading.Event()
 
         def carry_loop():
-            print(f"[KOL] {target_id} tasima modu basladi")
+            print(f"[KOL] LEGACY {target_id} tasima modu basladi")
 
             while not stop_event.is_set():
                 x, y, yaw = ika.read_odom()
 
-                # Hedefi İKA'nın üstünde/arkaya yakin bir noktada tut.
                 carry_x = x - 0.15 * math.cos(yaw)
                 carry_y = y - 0.15 * math.sin(yaw)
                 carry_z = 0.45
@@ -402,7 +477,7 @@ class ArmCtrl:
                 self.set_model_pose(target_id, carry_x, carry_y, carry_z, yaw)
                 time.sleep(0.2)
 
-            print(f"[KOL] {target_id} tasima modu bitti")
+            print(f"[KOL] LEGACY {target_id} tasima modu bitti")
 
         t = threading.Thread(target=carry_loop, daemon=True)
         t.start()
@@ -412,6 +487,7 @@ class ArmCtrl:
     def place_target(self, target_id, drop_x, drop_y, drop_z=0.03):
         """
         Hedefi home/drop alanina birakir.
+        Not: Bu fonksiyon taşıma için değil, detach sonrası son yerleşim düzeltmesi için kullanılır.
         """
         print(f"[KOL] {target_id} drop noktasina birakiliyor: ({drop_x}, {drop_y})")
         self.set_model_pose(target_id, drop_x, drop_y, drop_z, 0.0)

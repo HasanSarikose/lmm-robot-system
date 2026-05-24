@@ -52,7 +52,7 @@ def execute_mission(llm_output, frames_dict=None):
             if found:
                 log(f"[IKA-CAM] found=True area={area:.0f} offset={offset:.2f}")
 
-                if area > 5000:
+                if area > 12000:
                     ika.stop()
                     log(f"[IKA-CAM] Hedef erisim mesafesinde. Alan={area:.0f}")
                     return True
@@ -117,6 +117,12 @@ def execute_mission(llm_output, frames_dict=None):
                 "red_circle",
                 "red_square",
                 "red_triangle",
+            }
+            
+            drop_positions = {
+                "red_circle": (-2.0, -0.7),
+                "red_square": (-2.0, -1.0),
+                "red_triangle": (-2.0, -1.3),
             }
             found_targets = {}
 
@@ -257,15 +263,6 @@ def execute_mission(llm_output, frames_dict=None):
 
             confirmed = list(found_targets.values())
 
-
-            for i, h in enumerate(confirmed):
-                log(
-                    f"  Hedef {i + 1}: id={h['id']} shape={h['shape']} "
-                    f"koord=({h['x']:.2f}, {h['y']:.2f}) "
-                    f"center_error={h['center_error']}"
-                )
-            confirmed = list(found_targets.values())
-
             log(f"[DRONE] Tarama bitti. Onaylanan hedef sayisi: {len(confirmed)}")
 
             for i, h in enumerate(confirmed):
@@ -308,25 +305,34 @@ def execute_mission(llm_output, frames_dict=None):
                         arm.pick()
                         time.sleep(0.5)
 
-                        carry_stop_event, carry_thread = arm.start_carrying_target(target_id, ika)
+                        arm.pick()
 
-                        log(f"[GOREV] {target_id} icin eve donus...")
-                        arm.home()
-                        ika.return_home()
+                        attach_ok = arm.attach_target(target_id)
 
-                        carry_stop_event.set()
-                        carry_thread.join(timeout=1.0)
-                        arm.place()
-                        drop_positions = {
-                            "red_triangle": (-2.4, -0.7),
-                            "red_circle": (-2.0, -0.7),
-                            "red_square": (-1.6, -0.7),
-                        }
+                        if not attach_ok:
+                            log(f"[GOREV] {target_id} attach basarisiz. Hedef atlandi.")
+                            continue
 
-                        drop_x, drop_y = drop_positions.get(target_id, (-2.0, -0.7))
-                        arm.place_target(target_id, drop_x, drop_y)
+                        log(f"[GOREV] {target_id} gripper'a attach edildi. Eve donus...")
+                        arm.lift_after_attach()
+                        
+                        try:
+                            ika.return_home()
 
-                        log(f"[GOREV] {target_id} hedefi tamamlandi.")
+                            arm.place()
+                            arm.detach_target(target_id)
+
+                            
+                            log(f"[GOREV] {target_id} hedefi detach ile birakildi.")
+                            arm.home()
+                            log(f"[GOREV] {target_id} hedefi tamamlandi.")
+
+                        except Exception as e:
+                            log(f"[GOREV] {target_id} tasima/birakma sirasinda hata: {e}")
+                            arm.detach_target(target_id)
+                            continue
+
+                    
                     else:
                         log(f"[GOREV] {target_id} kamerada bulunamadi.")
                 else:

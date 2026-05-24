@@ -12,6 +12,8 @@ from ros_node import start_ros
 from mission_executor import execute_mission, get_log
 
 from robot_controllers import ign_cmd
+from state_buffer import robot_state, state_lock
+import math
 
 app = FastAPI()
 app.add_middleware(
@@ -100,23 +102,51 @@ async def websocket_stream(websocket: WebSocket, camera: str):
 
 @app.get("/lidar")
 def get_lidar():
-    result = subprocess.run(
-        ["ign", "topic", "-e", "-t", "/ika/lidar", "--num", "1"],
-        capture_output=True,
-        text=True,
-        timeout=5
-    )
-    lines = result.stdout.split("\n")
-    ranges = []
-    for line in lines:
-        if "ranges:" in line:
-            try:
-                val = float(line.split(":")[1])
-                if val != float("inf") and val > 0:
-                    ranges.append(val)
-            except:
+    """
+    Dashboard LiDAR endpoint.
+    Eski ign topic subprocess okuması yerine ros_node.py içindeki
+    /ika/lidar subscriber'ından gelen state_buffer verisini kullanır.
+    """
+
+    with state_lock:
+        ranges = list(robot_state.get("lidar_ranges", []))
+        ready = bool(robot_state.get("lidar_ready", False))
+
+    if not ready or not ranges:
+        return {
+            "ready": False,
+            "ranges": [],
+            "points": []
+        }
+
+    # Dashboard eski formatta points bekliyorsa basit polar -> xy dönüşümü yapıyoruz.
+    # LaserScan angle bilgisi state_buffer'da tutulmuyorsa yaklaşık -135/+135 derece varsayıyoruz.
+    points = []
+
+    n = len(ranges)
+    if n > 1:
+        angle_min = -2.35619
+        angle_max = 2.35619
+        angle_step = (angle_max - angle_min) / (n - 1)
+
+        for i, r in enumerate(ranges):
+            if r == float("inf") or r <= 0.05 or r > 30.0:
                 continue
-    return {"ranges": ranges[:360]}
+
+            angle = angle_min + i * angle_step
+            x = r * math.cos(angle)
+            y = r * math.sin(angle)
+
+            points.append({
+                "x": round(x, 3),
+                "y": round(y, 3)
+            })
+
+    return {
+        "ready": True,
+        "ranges": ranges,
+        "points": points
+    }
 
 # ================= MANUAL IKA CONTROL =================
 

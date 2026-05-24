@@ -119,16 +119,6 @@
       </link>
     </model>
 
-    <model name="barrel3">
-      <static>true</static>
-      <pose>3 -1 0.3 0 0 0</pose>
-      <link name="link">
-        <visual name="v"><geometry><cylinder><radius>0.2</radius><length>0.6</length></cylinder></geometry>
-<material><ambient>0.0 0.5 0.0 1</ambient><diffuse>0.0 0.6 0.0 1</diffuse></material></visual>
-        <collision name="c"><geometry><cylinder><radius>0.2</radius><length>0.6</length></cylinder></geometry></collision>
-      </link>
-    </model>
-
     <model name="box1">
       <static>true</static>
       <pose>3 1 0.25 0 0 0.2</pose>
@@ -184,10 +174,18 @@
 
 <!-- YUVARLAK HEDEF -->
 <model name="red_circle">
-  <static>true</static>
   <pose>4 -1 0.015 0 0 0</pose>
 
   <link name="link">
+    <inertial>
+      <mass>0.05</mass>
+      <inertia>
+        <ixx>0.0001</ixx><ixy>0</ixy><ixz>0</ixz>
+        <iyy>0.0001</iyy><iyz>0</iyz>
+        <izz>0.0001</izz>
+      </inertia>
+    </inertial>
+
     <visual name="visual">
       <geometry>
         <cylinder>
@@ -215,10 +213,18 @@
 
 <!-- KARE HEDEF -->
 <model name="red_square">
-  <static>true</static>
   <pose>3 3 0.015 0 0 0</pose>
 
   <link name="link">
+    <inertial>
+      <mass>0.05</mass>
+      <inertia>
+        <ixx>0.0001</ixx><ixy>0</ixy><ixz>0</ixz>
+        <iyy>0.0001</iyy><iyz>0</iyz>
+        <izz>0.0001</izz>
+      </inertia>
+    </inertial>
+
     <visual name="visual">
       <geometry>
         <box>
@@ -243,10 +249,18 @@
 
 <!-- UCGEN HEDEF - kalin 3 cubukla daha kolay algilanir -->
 <model name="red_triangle">
-  <static>true</static>
   <pose>-3 2 0.025 0 0 0</pose>
 
   <link name="link">
+    <inertial>
+      <mass>0.05</mass>
+      <inertia>
+        <ixx>0.0001</ixx><ixy>0</ixy><ixz>0</ixz>
+        <iyy>0.0001</iyy><iyz>0</iyz>
+        <izz>0.0001</izz>
+      </inertia>
+    </inertial>
+
 
     <!-- Alt kenar -->
     <visual name="bottom_visual">
@@ -650,6 +664,51 @@
       <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>arm_j6</joint_name><topic>arm_j6</topic><p_gain>3</p_gain><i_gain>0.05</i_gain><d_gain>1.0</d_gain></plugin>
       <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>finger_left_joint</joint_name><topic>gripper_left</topic><p_gain>20</p_gain><i_gain>0.1</i_gain><d_gain>0.5</d_gain></plugin>
       <plugin filename="libignition-gazebo6-joint-position-controller-system.so" name="ignition::gazebo::systems::JointPositionController"><joint_name>finger_right_joint</joint_name><topic>gripper_right</topic><p_gain>20</p_gain><i_gain>0.1</i_gain><d_gain>0.5</d_gain></plugin>
+      <!-- ===== DETACHABLE JOINTS: GRIPPER ATTACH / DETACH ===== -->
+      <!--
+        Bu bloklar hedefleri sürekli set_model_pose ile taşımak yerine
+        Gazebo DetachableJoint sistemi ile gripper_base linkine bağlamak için kullanılır.
+
+        Manuel test:
+          ign topic -t "/red_circle/attach" -m ignition.msgs.Empty -p "unused: true"
+          ign topic -t "/red_circle/detach" -m ignition.msgs.Empty -p "unused: true"
+          ign topic -e -t "/red_circle/state" --num 1
+
+        Not:
+          parent_link model içinde lokal link adı olarak verilir: gripper_base
+          Hedef linkleri: red_circle::link, red_square::link, red_triangle::link
+      -->
+
+      <plugin filename="ignition-gazebo-detachable-joint-system"
+              name="ignition::gazebo::systems::DetachableJoint">
+        <parent_link>gripper_base</parent_link>
+        <child_model>red_circle</child_model>
+        <child_link>link</child_link>
+        <detach_topic>/red_circle/detach</detach_topic>
+        <attach_topic>/red_circle/attach</attach_topic>
+        <output_topic>/red_circle/state</output_topic>
+      </plugin>
+
+      <plugin filename="ignition-gazebo-detachable-joint-system"
+              name="ignition::gazebo::systems::DetachableJoint">
+        <parent_link>gripper_base</parent_link>
+        <child_model>red_square</child_model>
+        <child_link>link</child_link>
+        <detach_topic>/red_square/detach</detach_topic>
+        <attach_topic>/red_square/attach</attach_topic>
+        <output_topic>/red_square/state</output_topic>
+      </plugin>
+
+      <plugin filename="ignition-gazebo-detachable-joint-system"
+              name="ignition::gazebo::systems::DetachableJoint">
+        <parent_link>gripper_base</parent_link>
+        <child_model>red_triangle</child_model>
+        <child_link>link</child_link>
+        <detach_topic>/red_triangle/detach</detach_topic>
+        <attach_topic>/red_triangle/attach</attach_topic>
+        <output_topic>/red_triangle/state</output_topic>
+      </plugin>
+
       <plugin filename="libignition-gazebo6-joint-state-publisher-system.so" name="ignition::gazebo::systems::JointStatePublisher">
         <topic>arm/joint_states</topic>
       </plugin>
