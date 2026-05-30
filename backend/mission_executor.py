@@ -4,9 +4,49 @@ import threading
 from robot_controllers import DroneCtrl, IKACtrl, ArmCtrl, ign_cmd
 from vision.ball_detector import detect_from_drone, verify_from_ika
 
+#log kaydı
+import csv 
+import os 
+from datetime import datetime
+
 mission_log = []
 mission_running = False
 
+
+
+def save_mission_result(result):
+    """
+    Mission result data is appended to results/mission_results.csv.
+    This CSV file is used for quantitative evaluation in the thesis.
+    """
+    results_dir = os.path.join(os.path.dirname(__file__), "..", "results")
+    os.makedirs(results_dir, exist_ok=True)
+
+    csv_path = os.path.join(results_dir, "mission_results.csv")
+
+    fieldnames = [
+        "trial_id",
+        "date_time",
+        "duration_sec",
+        "expected_target_count",
+        "detected_target_count",
+        "completed_target_count",
+        "detection_success_rate",
+        "completion_success_rate",
+        "detected_target_ids",
+        "completed_target_ids",
+        "failure_mode",
+    ]
+
+    file_exists = os.path.exists(csv_path)
+
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(result)
 
 def get_log():
     return mission_log
@@ -93,6 +133,13 @@ def execute_mission(llm_output, frames_dict=None):
 
             log("=" * 50)
             log("GOREV BASLADI")
+            mission_start_time = time.time()
+            trial_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            expected_target_count = 3
+            detected_target_ids = []
+            completed_target_ids = []
+            failure_mode = "none"
             log("=" * 50)
 
             log("[ADIM 1] Drone kalkiyor...")
@@ -262,9 +309,11 @@ def execute_mission(llm_output, frames_dict=None):
                     )
 
             confirmed = list(found_targets.values())
+            detected_target_ids = [h.get("id", "unknown") for h in confirmed]
 
             log(f"[DRONE] Tarama bitti. Onaylanan hedef sayisi: {len(confirmed)}")
 
+            
             for i, h in enumerate(confirmed):
                 log(
                     f"  Hedef {i + 1}: id={h['id']} shape={h['shape']} "
@@ -325,6 +374,7 @@ def execute_mission(llm_output, frames_dict=None):
                             
                             log(f"[GOREV] {target_id} hedefi detach ile birakildi.")
                             arm.home()
+                            completed_target_ids.append(target_id)
                             log(f"[GOREV] {target_id} hedefi tamamlandi.")
 
                         except Exception as e:
@@ -338,6 +388,34 @@ def execute_mission(llm_output, frames_dict=None):
                 else:
                     log(f"[GOREV] {target_id} bolgesine ulasilamadi.")
 
+            
+            mission_duration = round(time.time() - mission_start_time, 2)
+
+            detected_count = len(detected_target_ids)
+            completed_count = len(completed_target_ids)
+
+            result = {
+                "trial_id": trial_id,
+                "date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "duration_sec": mission_duration,
+                "expected_target_count": expected_target_count,
+                "detected_target_count": detected_count,
+                "completed_target_count": completed_count,
+                "detection_success_rate": round(detected_count / expected_target_count, 3),
+                "completion_success_rate": round(completed_count / expected_target_count, 3),
+                "detected_target_ids": "|".join(detected_target_ids),
+                "completed_target_ids": "|".join(completed_target_ids),
+                "failure_mode": failure_mode,
+            }
+
+            save_mission_result(result)
+
+            log(
+                f"[RESULT] trial={trial_id} "
+                f"duration={mission_duration}s "
+                f"detected={detected_count}/{expected_target_count} "
+                f"completed={completed_count}/{expected_target_count}"
+            )
             drone.land()
             arm.home()
             ika.stop()
@@ -347,7 +425,40 @@ def execute_mission(llm_output, frames_dict=None):
             log("=" * 50)
 
         except Exception as e:
+            failure_mode = str(e)
             log(f"[HATA] Gorev sirasinda hata olustu: {e}")
+
+            try:
+                mission_duration = round(time.time() - mission_start_time, 2)
+
+                detected_count = len(detected_target_ids)
+                completed_count = len(completed_target_ids)
+
+                result = {
+                    "trial_id": trial_id,
+                    "date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "duration_sec": mission_duration,
+                    "expected_target_count": expected_target_count,
+                    "detected_target_count": detected_count,
+                    "completed_target_count": completed_count,
+                    "detection_success_rate": round(detected_count / expected_target_count, 3),
+                    "completion_success_rate": round(completed_count / expected_target_count, 3),
+                    "detected_target_ids": "|".join(detected_target_ids),
+                    "completed_target_ids": "|".join(completed_target_ids),
+                    "failure_mode": failure_mode,
+                }
+
+                save_mission_result(result)
+
+                log(
+                    f"[RESULT] trial={trial_id} "
+                    f"duration={mission_duration}s "
+                    f"detected={detected_count}/{expected_target_count} "
+                    f"completed={completed_count}/{expected_target_count} "
+                    f"failure={failure_mode}"
+                )
+            except Exception as result_error:
+                log(f"[RESULT] Sonuc kaydi yazilamadi: {result_error}")
 
         finally:
             mission_running = False

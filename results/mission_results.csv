@@ -1,0 +1,6 @@
+trial_id,date_time,duration_sec,expected_target_count,detected_target_count,completed_target_count,detection_success_rate,completion_success_rate,detected_target_ids,completed_target_ids,failure_mode
+20260530_123339,2026-05-30 12:42:40,540.57,3,3,3,1.0,1.0,red_circle|red_triangle|red_square,red_circle|red_triangle|red_square,none
+20260530_124659,2026-05-30 12:55:58,539.13,3,3,3,1.0,1.0,red_circle|red_triangle|red_square,red_circle|red_triangle|red_square,none
+20260530_133545,2026-05-30 13:44:44,539.39,3,3,3,1.0,1.0,red_circle|red_triangle|red_square,red_circle|red_triangle|red_square,none
+20260530_134838,2026-05-30 13:57:37,539.51,3,3,3,1.0,1.0,red_circle|red_triangle|red_square,red_circle|red_triangle|red_square,none
+20260530_161058,2026-05-30 16:19:44,525.75,3,3,3,1.0,1.0,red_circle|red_triangle|red_square,red_circle|red_triangle|red_square,none
